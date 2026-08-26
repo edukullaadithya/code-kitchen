@@ -6,7 +6,7 @@ const vm = require('vm');
 // ===== LOAD LISTINGS FROM app.js =====
 function loadListings() {
   try {
-    const appJsPath = path.join(__dirname, '..', '..', 'app.js');
+    const appJsPath = path.join(__dirname, '..', '..', 'client.js');
     const source = fs.readFileSync(appJsPath, 'utf8');
     const match = source.match(/var ALL_LISTINGS = ([\s\S]*?);\r?\n\r?\nvar currentListings/);
     if (!match) throw new Error('Could not parse listings from app.js');

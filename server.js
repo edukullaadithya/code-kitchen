@@ -44,7 +44,7 @@ const MIME_TYPES = {
 
 // ===== DATABASE: LISTINGS =====
 function loadListings() {
-  const source = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT, 'client.js'), 'utf8');
   const match = source.match(/var ALL_LISTINGS = ([\s\S]*?);\r?\n\r?\nvar currentListings/);
   if (!match) throw new Error('Could not load rental listings.');
   return vm.runInNewContext(`(${match[1]})`);
@@ -53,7 +53,7 @@ function loadListings() {
 const LISTINGS = loadListings();
 
 function saveListings() {
-  const filePath = path.join(ROOT, 'app.js');
+  const filePath = path.join(ROOT, 'client.js');
   let source = fs.readFileSync(filePath, 'utf8');
   const formattedListings = JSON.stringify(LISTINGS, null, 2);
   source = source.replace(
