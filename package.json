@@ -4,8 +4,8 @@
   "private": true,
   "description": "Rental recommendation demo with a dependency-free Node.js API.",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "node dev-server.js",
+    "dev": "node --watch dev-server.js"
   },
   "engines": {
     "node": ">=18"
