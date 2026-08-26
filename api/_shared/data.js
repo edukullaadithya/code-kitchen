@@ -90,7 +90,11 @@ function matchesWorkplace(listing, workplace) {
   const query = normalise(workplace);
   if (!query) return true;
   const locality = normalise(listing.area);
-  return query.includes(locality) || locality.includes(query);
+  const cityName = normalise(listing.city);
+  const propertyName = normalise(listing.name);
+  return query.includes(locality) || locality.includes(query) ||
+         query.includes(cityName) || cityName.includes(query) ||
+         query.includes(propertyName) || propertyName.includes(query);
 }
 
 function getRecommendedListings(preferences) {
@@ -112,10 +116,11 @@ function getRecommendedListings(preferences) {
     : [];
 
   const candidates = LISTINGS[city].filter((listing) => {
-    const availableAmenities = listing.amenities.map(normalise);
-    const commuteMinutes = Number.parseInt(listing.commute, 10) || Infinity;
+    const availableAmenities = Array.isArray(listing.amenities) ? listing.amenities.map(normalise) : [];
+    const commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
+    const safetyScore = (listing.scores && listing.scores.safety) || 80;
     return (!propertyType || normalise(listing.type) === propertyType)
-      && listing.scores.safety >= minSafety
+      && safetyScore >= minSafety
       && commuteMinutes <= maxCommute
       && matchesWorkplace(listing, workplace)
       && requestedAmenities.every((amenity) => availableAmenities.includes(amenity));
@@ -123,14 +128,15 @@ function getRecommendedListings(preferences) {
 
   return candidates
     .map((listing) => {
-      const commuteMinutes = Number.parseInt(listing.commute, 10) || 90;
-      const availableAmenities = listing.amenities.map(normalise);
+      const commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
+      const availableAmenities = Array.isArray(listing.amenities) ? listing.amenities.map(normalise) : [];
       const matchedAmenities = requestedAmenities.filter((amenity) => availableAmenities.includes(amenity)).length;
       const amenityScore = requestedAmenities.length ? (matchedAmenities / requestedAmenities.length) * 8 : 0;
       const budgetScore = budget ? Math.max(-10, 8 - Math.abs(listing.price - budget) / budget * 12) : 0;
       const commuteScore = Math.max(-8, 6 - Math.max(0, commuteMinutes - maxCommute) * 0.5);
       const propertyScore = propertyType && normalise(listing.type) === propertyType ? 8 : 0;
-      const matchScore = Math.round(Math.max(0, Math.min(100, listing.score * 0.7 + amenityScore + budgetScore + commuteScore + propertyScore)));
+      const baseScore = listing.score || 85;
+      const matchScore = Math.round(Math.max(0, Math.min(100, baseScore * 0.7 + amenityScore + budgetScore + commuteScore + propertyScore)));
       return { ...listing, score: matchScore, matchedAmenities };
     })
     .sort((a, b) => b.score - a.score || a.price - b.price);

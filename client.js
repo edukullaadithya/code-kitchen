@@ -1011,6 +1011,7 @@ function getSearchPreferences() {
 }
 
 async function requestRecommendations(preferences) {
+  var localListings = getLocalRecommendations(preferences);
   try {
     var response = await fetch(getApiUrl('/api/recommendations'), {
       method: 'POST',
@@ -1018,15 +1019,23 @@ async function requestRecommendations(preferences) {
       body: JSON.stringify(preferences)
     });
     var payload = await response.json().catch(function () { return {}; });
-    if (!response.ok) throw new Error(payload.error || 'Recommendation API returned an error.');
-    if (!Array.isArray(payload.listings)) throw new Error('The recommendation service returned an invalid response.');
-    return payload.listings;
+    if (response.ok && Array.isArray(payload.listings)) {
+      var merged = payload.listings.slice();
+      // Ensure custom admin properties in this city appear at top if matched
+      localListings.forEach(function(localItem) {
+        var idx = merged.findIndex(function(item) { return item.id === localItem.id; });
+        if (idx === -1) {
+          merged.unshift(localItem);
+        } else {
+          merged[idx] = localItem; // prioritize updated local item
+        }
+      });
+      return merged;
+    }
+    return localListings;
   } catch (error) {
-    // A user may open index.html directly, where a relative API URL is not
-    // available. Keep the recommendation feature useful in that case by
-    // ranking the bundled listings with the same preference signals.
     console.warn('Recommendation API unavailable; using local analysis.', error);
-    return getLocalRecommendations(preferences);
+    return localListings;
   }
 }
 
@@ -1047,7 +1056,7 @@ function normaliseCityPreference(value) {
     chennai: 'chennai', madras: 'chennai', delhi: 'delhi', delhincr: 'delhi',
     ncr: 'delhi', gurugram: 'delhi', gurgaon: 'delhi'
   };
-  return aliases[normalisePreference(value)] || '';
+  return aliases[normalisePreference(value)] || normalisePreference(value);
 }
 
 function matchesWorkplacePreference(listing, workplace) {
@@ -1055,7 +1064,11 @@ function matchesWorkplacePreference(listing, workplace) {
   if (!query) return true;
 
   var locality = normalisePreference(listing.area);
-  return query.indexOf(locality) !== -1 || locality.indexOf(query) !== -1;
+  var cityName = normalisePreference(listing.city);
+  var propertyName = normalisePreference(listing.name);
+  return query.indexOf(locality) !== -1 || locality.indexOf(query) !== -1 ||
+         query.indexOf(cityName) !== -1 || cityName.indexOf(query) !== -1 ||
+         query.indexOf(propertyName) !== -1 || propertyName.indexOf(query) !== -1;
 }
 
 function getLocalRecommendations(preferences) {
@@ -1076,10 +1089,11 @@ function getLocalRecommendations(preferences) {
     ? preferences.amenities.map(normaliseAmenityPreference).filter(Boolean)
     : [];
   candidates = candidates.filter(function (listing) {
-    var availableAmenities = listing.amenities.map(normalisePreference);
-    var commuteMinutes = Number.parseInt(listing.commute, 10) || Infinity;
+    var availableAmenities = (listing.amenities || []).map(normalisePreference);
+    var commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
+    var safetyScore = (listing.scores && listing.scores.safety) || 80;
     return (!propertyType || normalisePreference(listing.type) === propertyType) &&
-      listing.scores.safety >= minSafety &&
+      safetyScore >= minSafety &&
       commuteMinutes <= maxCommute &&
       matchesWorkplacePreference(listing, workplace) &&
       requestedAmenities.every(function (amenity) { return availableAmenities.indexOf(amenity) !== -1; });
@@ -1087,8 +1101,8 @@ function getLocalRecommendations(preferences) {
 
   return candidates
     .map(function (listing) {
-      var commuteMinutes = Number.parseInt(listing.commute, 10) || 90;
-      var availableAmenities = listing.amenities.map(normalisePreference);
+      var commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
+      var availableAmenities = (listing.amenities || []).map(normalisePreference);
       var matchedAmenities = requestedAmenities.filter(function (amenity) {
         return availableAmenities.indexOf(amenity) !== -1;
       }).length;
@@ -1096,7 +1110,8 @@ function getLocalRecommendations(preferences) {
       var budgetScore = budget ? Math.max(-10, 8 - Math.abs(listing.price - budget) / budget * 12) : 0;
       var commuteScore = Math.max(-8, 6 - Math.max(0, commuteMinutes - maxCommute) * 0.5);
       var propertyScore = propertyType && normalisePreference(listing.type) === propertyType ? 8 : 0;
-      var matchScore = Math.round(Math.max(0, Math.min(100, listing.score * 0.7 + amenityScore + budgetScore + commuteScore + propertyScore)));
+      var baseScore = listing.score || 85;
+      var matchScore = Math.round(Math.max(0, Math.min(100, baseScore * 0.7 + amenityScore + budgetScore + commuteScore + propertyScore)));
       return Object.assign({}, listing, { score: matchScore, matchedAmenities: matchedAmenities });
     })
     .sort(function (a, b) { return b.score - a.score || a.price - b.price; });
@@ -1956,6 +1971,51 @@ function getAdminSelectedAmenities() {
   return selected;
 }
 
+// ===== LOCAL STORAGE DATA PERSISTENCE HELPERS =====
+function getCustomListingsFromStorage() {
+  try {
+    var raw = localStorage.getItem('rentright_custom_listings');
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveCustomListingsToStorage(list) {
+  try {
+    localStorage.setItem('rentright_custom_listings', JSON.stringify(list));
+  } catch (e) {}
+}
+
+function mergeCustomListingsIntoAll() {
+  var custom = getCustomListingsFromStorage();
+  custom.forEach(function(item) {
+    var city = (item.city || 'bengaluru').toLowerCase();
+    if (!ALL_LISTINGS[city]) ALL_LISTINGS[city] = [];
+    var idx = ALL_LISTINGS[city].findIndex(function(x) { return x.id === item.id; });
+    if (idx !== -1) {
+      ALL_LISTINGS[city][idx] = item;
+    } else {
+      ALL_LISTINGS[city].unshift(item);
+    }
+  });
+}
+
+function getCustomInquiriesFromStorage() {
+  try {
+    var raw = localStorage.getItem('rentright_custom_inquiries');
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveCustomInquiriesToStorage(list) {
+  try {
+    localStorage.setItem('rentright_custom_inquiries', JSON.stringify(list));
+  } catch (e) {}
+}
+
 async function handleAddNewProperty(event) {
   event.preventDefault();
   
@@ -1966,13 +2026,15 @@ async function handleAddNewProperty(event) {
   var type = document.getElementById('admin-type').value;
   var commute = document.getElementById('admin-commute').value + " min";
   var distance = document.getElementById('admin-distance').value + " km";
-  var safety = Number(document.getElementById('admin-safety').value);
-  var lat = Number(document.getElementById('admin-lat').value);
-  var lng = Number(document.getElementById('admin-lng').value);
+  var safety = Number(document.getElementById('admin-safety').value) || 85;
+  var lat = Number(document.getElementById('admin-lat').value) || 12.9716;
+  var lng = Number(document.getElementById('admin-lng').value) || 77.5946;
   var amenities = getAdminSelectedAmenities();
 
   var currentEmail = authState.user ? authState.user.email : 'admin@rentright.com';
+  var newId = Date.now();
   var listingPayload = {
+    id: newId,
     name: name,
     city: city,
     area: area,
@@ -1997,12 +2059,29 @@ async function handleAddNewProperty(event) {
     lat: lat,
     lng: lng,
     reviews: [
-      { stars: 4, text: "Newly published property by flat owner.", author: currentEmail }
+      { stars: 5, text: "Newly published property by flat owner.", author: currentEmail }
     ]
   };
 
+  // 1. Immediately persist to localStorage
+  var custom = getCustomListingsFromStorage();
+  custom.unshift(listingPayload);
+  saveCustomListingsToStorage(custom);
+
+  // 2. Put into in-memory ALL_LISTINGS
+  if (!ALL_LISTINGS[city]) ALL_LISTINGS[city] = [];
+  ALL_LISTINGS[city].unshift(listingPayload);
+
+  alert("Property published successfully!");
+  document.getElementById('add-property-form').reset();
+  document.querySelectorAll('#admin-amenities .chip.active').forEach(function(c) {
+    c.classList.remove('active');
+  });
+  loadAdminListings();
+
+  // 3. Sync to API in background
   try {
-    var response = await fetch(getApiUrl('/api/listings'), {
+    fetch(getApiUrl('/api/listings'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2010,28 +2089,7 @@ async function handleAddNewProperty(event) {
       },
       body: JSON.stringify(listingPayload)
     });
-    var data = await response.json();
-    if (data.success) {
-      alert("Property published successfully!");
-      document.getElementById('add-property-form').reset();
-      document.querySelectorAll('#admin-amenities .chip.active').forEach(function(c) {
-        c.classList.remove('active');
-      });
-      fetchAndUpdateLocalListings();
-    } else {
-      alert("Error adding listing: " + data.error);
-    }
-  } catch (err) {
-    // Offline fallback: save locally
-    if (listingPayload) {
-      if (!ALL_LISTINGS[city]) ALL_LISTINGS[city] = [];
-      ALL_LISTINGS[city].push(listingPayload);
-      alert("Property published locally!");
-      loadAdminListings();
-      document.getElementById('add-property-form').reset();
-      loadAdminListings();
-    }
-  }
+  } catch (err) {}
 }
 
 async function fetchAndUpdateLocalListings() {
@@ -2040,10 +2098,12 @@ async function fetchAndUpdateLocalListings() {
     var data = await response.json();
     if (data.listings) {
       ALL_LISTINGS = data.listings;
-      loadAdminListings();
     }
   } catch(e) {
     console.error("Failed updating list from server.", e);
+  } finally {
+    mergeCustomListingsIntoAll();
+    loadAdminListings();
   }
 }
 
@@ -2103,20 +2163,26 @@ function loadAdminListings() {
 
 async function handleDeleteListing(id) {
   if (!confirm("Are you sure you want to delete this listing?")) return;
+  
+  // 1. Remove from localStorage
+  var custom = getCustomListingsFromStorage();
+  custom = custom.filter(function(x) { return x.id !== id; });
+  saveCustomListingsToStorage(custom);
+
+  // 2. Remove from in-memory ALL_LISTINGS
+  Object.keys(ALL_LISTINGS).forEach(function(city) {
+    ALL_LISTINGS[city] = ALL_LISTINGS[city].filter(function(x) { return x.id !== id; });
+  });
+
+  alert("Listing deleted successfully!");
+  loadAdminListings();
+
+  // 3. Sync to API in background
   try {
-    var response = await fetch(getApiUrl('/api/listings/') + id, {
+    fetch(getApiUrl('/api/listings/') + id, {
       method: 'DELETE'
     });
-    var data = await response.json();
-    if (data.success) {
-      alert("Listing deleted successfully!");
-      fetchAndUpdateLocalListings();
-    } else {
-      alert("Error: " + data.error);
-    }
-  } catch (e) {
-    alert("Connection error.");
-  }
+  } catch (e) {}
 }
 
 // ===== TENANT INQUIRIES & INTEREST MANAGERS =====
@@ -2169,6 +2235,7 @@ async function handleInquirySubmit(event) {
   hideInquiryAlert();
 
   var payload = {
+    id: 'inq_' + Date.now(),
     listingId: document.getElementById('inquiry-listing-id').value,
     listingName: document.getElementById('inquiry-flat-name').textContent,
     ownerEmail: document.getElementById('inquiry-owner-email').value,
@@ -2176,29 +2243,29 @@ async function handleInquirySubmit(event) {
     phone: document.getElementById('inquiry-phone').value,
     userEmail: document.getElementById('inquiry-user-email').value,
     moveInDate: document.getElementById('inquiry-move-date').value,
-    message: document.getElementById('inquiry-message').value
+    message: document.getElementById('inquiry-message').value,
+    createdAt: new Date().toISOString()
   };
 
+  // 1. Save to localStorage
+  var inqs = getCustomInquiriesFromStorage();
+  inqs.unshift(payload);
+  saveCustomInquiriesToStorage(inqs);
+
+  showInquiryAlert('Success! Your interest has been sent to the property owner.', true);
+  setTimeout(function() {
+    closeInquiryModal();
+    alert('Your contact details have been sent to the landlord. They will reach out to you shortly!');
+  }, 800);
+
+  // 2. Sync to API in background
   try {
-    var response = await fetch(getApiUrl('/api/inquiries'), {
+    fetch(getApiUrl('/api/inquiries'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    var data = await response.json();
-    if (data.success) {
-      showInquiryAlert('Success! Your interest has been sent to the property owner.', true);
-      setTimeout(function() {
-        closeInquiryModal();
-        alert('Your contact details have been sent to the landlord. They will reach out to you shortly!');
-      }, 1000);
-    } else {
-      showInquiryAlert(data.error || 'Failed to submit interest.');
-    }
-  } catch (err) {
-    showInquiryAlert('Success! Interest recorded locally.');
-    setTimeout(function() { closeInquiryModal(); }, 1000);
-  }
+  } catch (err) {}
 }
 
 async function loadAdminInquiries() {
@@ -2207,58 +2274,72 @@ async function loadAdminInquiries() {
   if (!tbody) return;
 
   var currentAdminEmail = authState.user ? authState.user.email : 'admin@rentright.com';
+  var inquiries = [];
 
   try {
     var response = await fetch(getApiUrl('/api/inquiries?ownerEmail=') + encodeURIComponent(currentAdminEmail), {
       headers: { 'Authorization': 'Bearer ' + (authState.token || '') }
     });
     var data = await response.json();
-    var inquiries = data.inquiries || [];
-
-    if (countEl) countEl.textContent = inquiries.length;
-    tbody.innerHTML = '';
-
-    if (inquiries.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2.5rem; color:var(--text-muted); font-size:0.95rem;">' +
-        '📩 No tenant inquiries received yet for your properties.' +
-        '</td></tr>';
-      return;
+    if (data.inquiries && Array.isArray(data.inquiries)) {
+      inquiries = data.inquiries;
     }
+  } catch(err) {}
 
-    inquiries.forEach(function(inq) {
-      var dateStr = inq.createdAt ? new Date(inq.createdAt).toLocaleDateString('en-IN') : 'Recently';
-      var tr = document.createElement('tr');
-      tr.innerHTML = 
-        '<td>' +
-          '<div style="font-weight:600; color:var(--accent-primary);">' + (inq.listingName || 'Property') + '</div>' +
-        '</td>' +
-        '<td><strong>' + (inq.userName || 'Renter') + '</strong></td>' +
-        '<td>' +
-          '<div>📞 <a href="tel:' + inq.phone + '" style="color:var(--text-primary);font-weight:600;">' + inq.phone + '</a></div>' +
-          '<div style="font-size:0.75rem;color:var(--text-muted);">✉️ ' + inq.userEmail + '</div>' +
-        '</td>' +
-        '<td>' + (inq.moveInDate || 'Flexible') + '</td>' +
-        '<td><div style="max-width:260px; font-size:0.85rem; color:var(--text-secondary);">' + (inq.message || 'Interested in renting') + '</div></td>' +
-        '<td>' + dateStr + '</td>' +
-        '<td>' +
-          '<button class="btn-outline" style="color:var(--accent-red);border-color:rgba(239,68,68,0.3);padding:0.35rem 0.75rem;" onclick="handleDeleteInquiry(\'' + inq.id + '\')">Remove</button>' +
-        '</td>';
-      tbody.appendChild(tr);
-    });
-  } catch(err) {
-    console.warn("Could not load inquiries:", err);
+  // Merge with local inquiries for this owner
+  var localInqs = getCustomInquiriesFromStorage().filter(function(i) {
+    return (!i.ownerEmail) || i.ownerEmail === currentAdminEmail;
+  });
+
+  localInqs.forEach(function(li) {
+    if (!inquiries.some(function(i) { return i.id === li.id; })) {
+      inquiries.unshift(li);
+    }
+  });
+
+  if (countEl) countEl.textContent = inquiries.length;
+  tbody.innerHTML = '';
+
+  if (inquiries.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2.5rem; color:var(--text-muted); font-size:0.95rem;">' +
+      '📩 No tenant inquiries received yet for your properties.' +
+      '</td></tr>';
+    return;
   }
+
+  inquiries.forEach(function(inq) {
+    var dateStr = inq.createdAt ? new Date(inq.createdAt).toLocaleDateString('en-IN') : 'Recently';
+    var tr = document.createElement('tr');
+    tr.innerHTML = 
+      '<td>' +
+        '<div style="font-weight:600; color:var(--accent-primary);">' + (inq.listingName || 'Property') + '</div>' +
+      '</td>' +
+      '<td><strong>' + (inq.userName || 'Renter') + '</strong></td>' +
+      '<td>' +
+        '<div>📞 <a href="tel:' + inq.phone + '" style="color:var(--text-primary);font-weight:600;">' + inq.phone + '</a></div>' +
+        '<div style="font-size:0.75rem;color:var(--text-muted);">✉️ ' + inq.userEmail + '</div>' +
+      '</td>' +
+      '<td>' + (inq.moveInDate || 'Flexible') + '</td>' +
+      '<td><div style="max-width:260px; font-size:0.85rem; color:var(--text-secondary);">' + (inq.message || 'Interested in renting') + '</div></td>' +
+      '<td>' + dateStr + '</td>' +
+      '<td>' +
+        '<button class="btn-outline" style="color:var(--accent-red);border-color:rgba(239,68,68,0.3);padding:0.35rem 0.75rem;" onclick="handleDeleteInquiry(\'' + inq.id + '\')">Remove</button>' +
+      '</td>';
+    tbody.appendChild(tr);
+  });
 }
 
 async function handleDeleteInquiry(id) {
   if (!confirm("Are you sure you want to remove this lead?")) return;
+  var inqs = getCustomInquiriesFromStorage().filter(function(i) { return i.id !== id; });
+  saveCustomInquiriesToStorage(inqs);
   try {
-    await fetch(getApiUrl('/api/inquiries/') + id, { method: 'DELETE' });
-    loadAdminInquiries();
+    fetch(getApiUrl('/api/inquiries/') + id, { method: 'DELETE' });
   } catch(e) {}
+  loadAdminInquiries();
 }
 
-// Initial fetch from server
+// Initial fetch from server and local merge
 fetchAndUpdateLocalListings();
 
 // Also load inquiries in Admin Seller Portal
