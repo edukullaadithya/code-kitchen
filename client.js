@@ -1516,11 +1516,17 @@ if (window.IntersectionObserver) {
 }
 
 // ===== AUTHENTICATION & USER MANAGEMENT =====
+var cachedUser = null;
+try {
+  var cachedRaw = localStorage.getItem('rentright_user');
+  if (cachedRaw) cachedUser = JSON.parse(cachedRaw);
+} catch(e) {}
+
 var authState = {
-  user: null,
+  user: cachedUser,
   token: localStorage.getItem('rentright_token') || '',
   mode: 'login', // 'login' or 'register'
-  role: 'user'   // 'user' or 'admin'
+  role: (cachedUser && cachedUser.role) ? cachedUser.role : 'user'
 };
 
 function openAuthModal(mode, role) {
@@ -2016,6 +2022,20 @@ function saveCustomInquiriesToStorage(list) {
   } catch (e) {}
 }
 
+function getCurrentUserEmail() {
+  if (authState.user && authState.user.email) {
+    return String(authState.user.email).trim().toLowerCase();
+  }
+  try {
+    var raw = localStorage.getItem('rentright_user');
+    if (raw) {
+      var u = JSON.parse(raw);
+      if (u && u.email) return String(u.email).trim().toLowerCase();
+    }
+  } catch(e) {}
+  return 'admin@rentright.com';
+}
+
 async function handleAddNewProperty(event) {
   event.preventDefault();
   
@@ -2031,7 +2051,7 @@ async function handleAddNewProperty(event) {
   var lng = Number(document.getElementById('admin-lng').value) || 77.5946;
   var amenities = getAdminSelectedAmenities();
 
-  var currentEmail = authState.user ? authState.user.email : 'admin@rentright.com';
+  var currentEmail = getCurrentUserEmail();
   var newId = Date.now();
   var listingPayload = {
     id: newId,
@@ -2117,19 +2137,38 @@ function loadAdminListings() {
 
   if (!tbody) return;
 
-  var currentAdminEmail = authState.user ? authState.user.email : 'admin@rentright.com';
+  var currentAdminEmail = getCurrentUserEmail();
+
+  // Guarantee custom listings from storage are merged into in-memory ALL_LISTINGS
+  mergeCustomListingsIntoAll();
 
   var allItems = [];
   Object.keys(ALL_LISTINGS).forEach(function (city) {
     ALL_LISTINGS[city].forEach(function (item) {
-      allItems.push(item);
+      if (!allItems.some(function(existing) { return existing.id === item.id; })) {
+        allItems.push(item);
+      }
     });
   });
 
-  // Filter ONLY properties owned/posted by this specific logged in Administrator
+  // Filter properties owned/posted by this specific logged in Administrator
+  var customItems = getCustomListingsFromStorage();
   var myItems = allItems.filter(function(item) {
-    if (!item.ownerEmail) return currentAdminEmail === 'admin@rentright.com';
-    return item.ownerEmail === currentAdminEmail;
+    var itemEmail = String(item.ownerEmail || '').trim().toLowerCase();
+    if (!itemEmail) {
+      return currentAdminEmail === 'admin@rentright.com';
+    }
+    return itemEmail === currentAdminEmail;
+  });
+
+  // Also include any custom property added in this browser session
+  customItems.forEach(function(cItem) {
+    var cEmail = String(cItem.ownerEmail || '').trim().toLowerCase();
+    if (!cEmail || cEmail === currentAdminEmail || currentAdminEmail === 'admin@rentright.com' || (authState.user && authState.user.role === 'admin')) {
+      if (!myItems.some(function(existing) { return existing.id === cItem.id; })) {
+        myItems.unshift(cItem);
+      }
+    }
   });
 
   if (totalCount) totalCount.textContent = myItems.length;
