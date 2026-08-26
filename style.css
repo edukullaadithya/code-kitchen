@@ -977,6 +977,8 @@ h3 { font-size: 1.2rem; }
   .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
   .property-scores { grid-template-columns: repeat(2, 1fr); }
   .comparison-scroll { padding: 1rem; }
+}
+
 /* ===== STANDALONE LOGIN SCREEN STYLES ===== */
 .login-page-screen {
   min-height: 100vh;
@@ -990,15 +992,17 @@ h3 { font-size: 1.2rem; }
   background: var(--bg-base);
   padding: 1.5rem;
   overflow-y: auto;
+  box-sizing: border-box;
 }
 .login-container {
   width: 100%;
   max-width: 460px;
-  padding: 3rem 2.5rem;
+  padding: 2.5rem 2rem;
   margin: auto;
   position: relative;
   z-index: 2;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
 }
 .login-brand {
   text-align: center;
@@ -1031,6 +1035,7 @@ h3 { font-size: 1.2rem; }
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
+  cursor: pointer;
 }
 .role-tab.active {
   background: var(--grad-btn);
@@ -1078,4 +1083,80 @@ h3 { font-size: 1.2rem; }
   font-weight: 600;
   margin-left: 0.3rem;
 }
+
+/* ===== COMPREHENSIVE RESPONSIVE ALIGNMENT FIXES ===== */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 1rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  .search-form-card {
+    padding: 1.5rem !important;
+  }
+  .glass-card {
+    padding: 1.5rem 1rem !important;
+  }
+  .listings-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .login-container {
+    padding: 2rem 1.25rem;
+  }
+  .modal-content, .property-modal, .comparison-modal {
+    width: 95% !important;
+    padding: 1.5rem 1rem !important;
+    max-height: 88vh !important;
+    overflow-y: auto !important;
+  }
+  .property-modal-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+  .card-metrics {
+    gap: 0.35rem;
+  }
+  .card-metric .metric-val {
+    font-size: 0.85rem;
+  }
+  .card-metric .metric-name {
+    font-size: 0.65rem;
+  }
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .nav-cta {
+    gap: 0.5rem;
+  }
+  .amenity-chips {
+    gap: 0.4rem;
+  }
+  .chip {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-headline {
+    font-size: 2rem !important;
+    line-height: 1.2 !important;
+  }
+  .btn-lg {
+    padding: 0.75rem 1.25rem !important;
+    font-size: 0.9rem !important;
+  }
+  .role-tab {
+    font-size: 0.78rem;
+    padding: 0.5rem 0.4rem;
+  }
+  .property-scores {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 
