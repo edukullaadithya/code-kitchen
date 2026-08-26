@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In & Register – RentRight</title>
+  <meta name="description" content="Sign in or create an account for RentRight to access AI rental recommendations or the administrator management portal." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body style="background: var(--bg-base); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem;">
+
+  <div class="hero-bg-gradient"></div>
+
+  <!-- STANDALONE LOGIN CONTAINER -->
+  <div class="login-container glass-card" style="max-width: 500px; padding: 3rem 2.5rem;">
+    
+    <!-- Brand Header -->
+    <div class="login-brand">
+      <svg class="logo-svg" viewBox="0 0 100 100" width="54" height="54" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="pinGradLoginPage" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0052d4" />
+            <stop offset="50%" stop-color="#4364f7" />
+            <stop offset="100%" stop-color="#6fb1fc" />
+          </linearGradient>
+        </defs>
+        <path d="M50 90C72 68 85 49 85 32C85 13 69 0 50 0C31 0 15 13 15 32C15 49 28 68 50 90Z" fill="url(#pinGradLoginPage)"/>
+        <circle cx="50" cy="32" r="22" fill="#ffffff" />
+        <path d="M50 18L32 32V47H42V37H58V47H68V32L50 18Z" fill="#0052d4" />
+        <rect x="47" y="27" width="6" height="6" fill="#ffffff" />
+      </svg>
+      <h1 class="logo-text" style="font-size: 2.2rem; margin-top: 0.5rem;">Rent<span class="logo-accent">Right</span></h1>
+      <p class="login-tagline">Don't just find a house — <span class="gradient-text">find the right place to live.</span></p>
+      <h2 id="auth-heading" style="margin: 1.5rem 0 0.35rem; font-size: 1.35rem;">Sign In</h2>
+      <p id="auth-instruction" style="margin: 0; color: var(--text-muted); font-size:0.9rem;">Select your account type below to sign in or create an account.</p>
+    </div>
+
+    <!-- Explicit Role Selector Prompt -->
+    <div style="margin-bottom: 1.25rem;">
+      <label class="form-label" id="role-prompt-label" style="font-weight: 600; font-size: 0.85rem; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.04em;">
+        Select Account Type:
+      </label>
+      <div class="role-selector-bar" style="margin-top: 0.4rem;">
+        <button type="button" class="role-tab active" id="role-btn-user" onclick="selectRole('user')">
+          <span>👤</span> Customer / Renter
+        </button>
+        <button type="button" class="role-tab" id="role-btn-admin" onclick="selectRole('admin')">
+          <span>💼</span> Administrator
+        </button>
+      </div>
+    </div>
+
+    <!-- Alert Box -->
+    <div id="login-alert" class="auth-alert-box" style="display:none;"></div>
+
+    <!-- Auth Form -->
+    <form id="standalone-login-form" onsubmit="handleLoginSubmit(event)">
+      
+      <!-- Account Type Selection Dropdown / Indicator -->
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label">Creating/Signing in as:</label>
+        <select id="role-dropdown" class="form-input" onchange="selectRole(this.value)" style="font-weight:600; background:rgba(99,102,241,0.06); border-color:var(--border-accent);">
+          <option value="user">👤 Customer / Renter Account</option>
+          <option value="admin">💼 Administrator Account</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="name-group" style="display:none; margin-bottom: 1rem;">
+        <label class="form-label">Full Name</label>
+        <input type="text" id="login-name" class="form-input" placeholder="e.g. Alex Sharma" autocomplete="name" />
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label">Email Address</label>
+        <input type="email" id="login-email" class="form-input" placeholder="name@domain.com" autocomplete="email" required />
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label class="form-label">Password</label>
+        <input type="password" id="login-password" class="form-input" placeholder="Your password" autocomplete="current-password" required />
+      </div>
+
+      <button type="submit" id="submit-btn" class="btn-primary btn-lg btn-full">
+        Sign In &amp; Continue
+      </button>
+    </form>
+
+    <!-- Toggle Mode -->
+    <div class="auth-toggle-footer" style="margin-top: 1.5rem; text-align: center;">
+      <span id="toggle-text">Need to create an account?</span>
+      <a href="#" id="toggle-link" style="color:var(--accent-primary); font-weight:700;" onclick="toggleAuthMode(event)">Create Account for User or Admin</a>
+    </div>
+
+  </div>
+
+  <script>
+    var currentRole = 'user';
+    var currentMode = 'login'; // 'login' or 'register'
+
+    function getApiUrl(path) {
+      if (window.location.protocol === 'file:') {
+        return 'http://localhost:3000' + path;
+      }
+      return path;
+    }
+
+    // Check if token exists on load
+    if (localStorage.getItem('rentright_token')) {
+      fetch(getApiUrl('/api/auth/me'), {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rentright_token') }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.user) {
+          window.location.href = 'index.html';
+        }
+      })
+      .catch(() => {
+        if (localStorage.getItem('rentright_user')) {
+          window.location.href = 'index.html';
+        }
+      });
+    }
+
+    function selectRole(role) {
+      currentRole = role;
+      document.getElementById('role-btn-user').classList.toggle('active', role === 'user');
+      document.getElementById('role-btn-admin').classList.toggle('active', role === 'admin');
+      
+      var dropdown = document.getElementById('role-dropdown');
+      if (dropdown) dropdown.value = role;
+    }
+
+    function toggleAuthMode(event) {
+      if (event) event.preventDefault();
+      currentMode = (currentMode === 'login') ? 'register' : 'login';
+      hideAlert();
+
+      var nameGrp = document.getElementById('name-group');
+      var submitBtn = document.getElementById('submit-btn');
+      var toggleText = document.getElementById('toggle-text');
+      var toggleLink = document.getElementById('toggle-link');
+      var authHeading = document.getElementById('auth-heading');
+      var authInstruction = document.getElementById('auth-instruction');
+      var rolePromptLabel = document.getElementById('role-prompt-label');
+
+      if (currentMode === 'register') {
+        nameGrp.style.display = 'block';
+        document.getElementById('login-name').required = true;
+        document.getElementById('login-password').minLength = 6;
+        document.getElementById('login-password').placeholder = 'Choose a password (min 6 chars)';
+        document.getElementById('login-password').autocomplete = 'new-password';
+        authHeading.textContent = 'Create an Account';
+        authInstruction.textContent = 'Creating account for ' + (currentRole === 'admin' ? 'Administrator' : 'Customer / Renter') + '. Fill in details below.';
+        if (rolePromptLabel) rolePromptLabel.textContent = 'Account Type to Create:';
+        submitBtn.textContent = 'Create Account & Continue';
+        toggleText.textContent = 'Already have an account?';
+        toggleLink.textContent = 'Sign In';
+      } else {
+        nameGrp.style.display = 'none';
+        document.getElementById('login-name').required = false;
+        document.getElementById('login-password').minLength = 0;
+        document.getElementById('login-password').placeholder = 'Your password';
+        document.getElementById('login-password').autocomplete = 'current-password';
+        authHeading.textContent = 'Welcome back';
+        authInstruction.textContent = 'Select your account type below to sign in.';
+        if (rolePromptLabel) rolePromptLabel.textContent = 'Select Account Type:';
+        submitBtn.textContent = 'Sign In & Continue';
+        toggleText.textContent = 'Need to create an account?';
+        toggleLink.textContent = 'Create Account for User or Admin';
+      }
+    }
+
+    function showAlert(msg, isSuccess) {
+      var alertBox = document.getElementById('login-alert');
+      alertBox.textContent = msg;
+      alertBox.style.display = 'block';
+      if (isSuccess) {
+        alertBox.style.background = 'rgba(16,185,129,0.15)';
+        alertBox.style.borderColor = 'rgba(16,185,129,0.3)';
+        alertBox.style.color = '#6ee7b7';
+      } else {
+        alertBox.style.background = 'rgba(239,68,68,0.15)';
+        alertBox.style.borderColor = 'rgba(239,68,68,0.3)';
+        alertBox.style.color = '#fca5a5';
+      }
+    }
+
+    function hideAlert() {
+      document.getElementById('login-alert').style.display = 'none';
+    }
+
+    async function handleLoginSubmit(event) {
+      event.preventDefault();
+      hideAlert();
+
+      var email = document.getElementById('login-email').value.trim().toLowerCase();
+      var password = document.getElementById('login-password').value;
+      var name = document.getElementById('login-name').value;
+      var endpoint = (currentMode === 'register') ? '/api/auth/register' : '/api/auth/login';
+
+      var payload = { 
+        email: email, 
+        password: password, 
+        role: currentRole 
+      };
+      if (currentMode === 'register') {
+        payload.name = name || (email.split('@')[0]);
+      }
+
+      try {
+        var response = await fetch(getApiUrl(endpoint), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        var data = await response.json();
+
+        if (data.success && data.token) {
+          localStorage.setItem('rentright_token', data.token);
+          if (data.user) localStorage.setItem('rentright_user', JSON.stringify(data.user));
+          var roleName = (data.user && data.user.role === 'admin') ? 'Administrator' : 'Customer';
+          showAlert('Account verified (' + roleName + ')! Redirecting...', true);
+          setTimeout(function() {
+            window.location.href = 'index.html';
+          }, 400);
+        } else {
+          showAlert(data.error || 'Authentication failed.');
+        }
+      } catch (err) {
+        // Fallback for file:// protocol viewing or offline backend
+        if (email && password) {
+          var userObj = {
+            id: 'usr_' + Date.now(),
+            name: name || (email.split('@')[0]),
+            email: email,
+            role: currentRole
+          };
+          localStorage.setItem('rentright_token', 'token_' + Date.now());
+          localStorage.setItem('rentright_user', JSON.stringify(userObj));
+          showAlert('Success! Account created (' + (currentRole === 'admin' ? 'Administrator' : 'Customer') + ')', true);
+          setTimeout(function() { window.location.href = 'index.html'; }, 400);
+          return;
+        }
+        showAlert('Unable to reach server. Please enter email & password.');
+      }
+    }
+  </script>
+</body>
+</html>

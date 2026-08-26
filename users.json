@@ -1,0 +1,42 @@
+[
+  {
+    "id": "usr_admin",
+    "name": "Administrator",
+    "email": "admin@rentright.com",
+    "password": "369bfa77256fbf0af94c660dc7448e66966d5b74ed9c154a7542c06b228b9142",
+    "role": "admin",
+    "createdAt": "2026-08-26T03:58:12.175Z"
+  },
+  {
+    "id": "usr_demo",
+    "name": "Alex Renter",
+    "email": "user@rentright.com",
+    "password": "7f8386958cb8ac8233cc449a86124856e4e48fe9ab08ae07968ee3b61a29f6e6",
+    "role": "user",
+    "createdAt": "2026-08-26T03:58:12.176Z"
+  },
+  {
+    "id": "usr_1787717972898",
+    "name": "Edukulla Adithya",
+    "email": "edukullaadithya08@gmail.com",
+    "password": "06264bd4f64a601dc4cfb5fda5352fc3f1fc4d55767bafbc2954c66f244373b3",
+    "role": "user",
+    "createdAt": "2026-08-26T04:19:32.899Z"
+  },
+  {
+    "id": "usr_1787718152853",
+    "name": "Adithya Edukulla",
+    "email": "adithyaedukulla08@gmail.com",
+    "password": "4875b61f49e78abe82a2e3f486ee095d0d3758d1588c4a58c09008ec1db6f6db",
+    "role": "admin",
+    "createdAt": "2026-08-26T04:22:32.853Z"
+  },
+  {
+    "id": "usr_1787719366272",
+    "name": "demon",
+    "email": "adithyademon8@gmail.com",
+    "password": "06264bd4f64a601dc4cfb5fda5352fc3f1fc4d55767bafbc2954c66f244373b3",
+    "role": "admin",
+    "createdAt": "2026-08-26T04:42:46.272Z"
+  }
+]

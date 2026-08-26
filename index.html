@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RentRight – Find the Right Place to Live</title>
+  <meta name="description" content="AI-powered rental recommendation platform. Enter your budget, workplace location, and preferences to find the perfect home ranked by rent, distance, safety, amenities, and reviews." />
+  <!-- Fonts: non-blocking async load so page never waits -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" /></noscript>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ===== NAVBAR ===== -->
+<nav class="navbar" id="navbar">
+  <div class="nav-inner">
+    <a href="#" class="logo">
+      <svg class="logo-svg" viewBox="0 0 100 100" width="36" height="36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="pinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0052d4" />
+            <stop offset="50%" stop-color="#4364f7" />
+            <stop offset="100%" stop-color="#6fb1fc" />
+          </linearGradient>
+        </defs>
+        <!-- Map Pin base shape -->
+        <path d="M50 90C72 68 85 49 85 32C85 13 69 0 50 0C31 0 15 13 15 32C15 49 28 68 50 90Z" fill="url(#pinGrad)"/>
+        <!-- Inner white circle -->
+        <circle cx="50" cy="32" r="22" fill="#ffffff" />
+        <!-- Blue house shape inside -->
+        <path d="M50 18L32 32V47H42V37H58V47H68V32L50 18Z" fill="#0052d4" />
+        <!-- Small window inside the house -->
+        <rect x="47" y="27" width="6" height="6" fill="#ffffff" />
+      </svg>
+      <span class="logo-text">Rent<span class="logo-accent">Right</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#search-section" class="nav-link nav-link-client" onclick="setViewMode('client')">Find Home</a></li>
+      <li><a href="#how-it-works" class="nav-link nav-link-client" onclick="setViewMode('client')">How It Works</a></li>
+      <li><a href="#admin-portal" class="nav-link nav-link-admin-toggle" onclick="setViewMode('admin')">💼 Admin Dashboard</a></li>
+    </ul>
+    <div class="nav-cta">
+      <span class="ai-badge"><span class="ai-dot"></span>Powered by Vertex AI</span>
+      <!-- Auth Status & Controls -->
+      <div id="auth-nav-logged-out" style="display:inline-flex; align-items:center; gap:0.6rem;">
+        <button class="btn-outline btn-sm" onclick="openAuthModal('login')">🔑 Sign In</button>
+      </div>
+      <div id="auth-nav-logged-in" style="display:none; align-items:center; gap:0.6rem;">
+        <span class="gcp-badge" id="user-badge" style="background:rgba(99,102,241,0.15);border-color:var(--accent-primary);color:var(--text-primary);font-weight:600;">
+          👤 <span id="user-display-name">User</span>
+        </span>
+        <button class="btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:var(--accent-red)" onclick="handleLogout()">Sign Out</button>
+      </div>
+    </div>
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- ===== HERO SECTION ===== -->
+<section class="hero" id="hero">
+  <canvas id="particles-canvas"></canvas>
+  <div class="hero-bg-gradient"></div>
+  <div class="hero-content">
+    <div class="hero-text-col">
+      <div class="hero-badge">
+        <span class="badge-dot"></span>
+        AI-Powered Rental Intelligence
+      </div>
+      <h1 class="hero-headline">
+        Don't just find a house —<br />
+        <span class="gradient-text">find the right place to live.</span>
+      </h1>
+      <p class="hero-sub">
+        Enter your budget, workplace, and preferences. Our Vertex AI engine scores thousands of rental listings across <strong>6 key metrics</strong> and surfaces the perfect match — just for you.
+      </p>
+      <div class="hero-metrics">
+        <div class="metric-pill"><span class="metric-icon">💰</span> Rent</div>
+        <div class="metric-pill"><span class="metric-icon">📍</span> Distance</div>
+        <div class="metric-pill"><span class="metric-icon">🚌</span> Transport</div>
+        <div class="metric-pill"><span class="metric-icon">🛡️</span> Safety</div>
+        <div class="metric-pill"><span class="metric-icon">🏋️</span> Amenities</div>
+        <div class="metric-pill"><span class="metric-icon">⭐</span> Reviews</div>
+      </div>
+      <div class="hero-actions">
+        <a href="#search-section" class="btn-primary btn-lg" id="hero-cta">
+          <span>Find My Perfect Home</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#how-it-works" class="btn-ghost btn-lg">See How It Works</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-num" data-target="12000">0</span><span class="stat-suffix">+</span><span class="stat-label">Listings Analyzed</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-num" data-target="98">0</span><span class="stat-suffix">%</span><span class="stat-label">Match Accuracy</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-num" data-target="4200">0</span><span class="stat-suffix">+</span><span class="stat-label">Happy Renters</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="floating-card card-1">
+      <div class="fc-header">
+        <span class="fc-score-ring" style="--score:92;--color:#6366f1">
+          <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#1e1b4b" stroke-width="3"/><circle class="ring-fill" cx="18" cy="18" r="15.5" fill="none" stroke="#6366f1" stroke-width="3" stroke-dasharray="97.4 97.4" stroke-dashoffset="7.8" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg>
+          <span>92</span>
+        </span>
+        <div>
+          <div class="fc-title">Green Meadows Apt</div>
+          <div class="fc-sub">2BHK · Koramangala</div>
+        </div>
+      </div>
+      <div class="fc-price">₹22,000<span>/mo</span></div>
+      <div class="fc-tags"><span>🚇 Metro nearby</span><span>✅ Pet-friendly</span></div>
+    </div>
+    <div class="floating-card card-2">
+      <div class="fc-header">
+        <span class="fc-score-ring" style="--score:87;--color:#06b6d4">
+          <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#0c2a38" stroke-width="3"/><circle class="ring-fill" cx="18" cy="18" r="15.5" fill="none" stroke="#06b6d4" stroke-width="3" stroke-dasharray="84.9 97.4" stroke-dashoffset="12.5" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg>
+          <span>87</span>
+        </span>
+        <div>
+          <div class="fc-title">Sky Heights</div>
+          <div class="fc-sub">1BHK · Indiranagar</div>
+        </div>
+      </div>
+      <div class="fc-price">₹18,500<span>/mo</span></div>
+      <div class="fc-tags"><span>🏋️ Gym included</span><span>🅿️ Parking</span></div>
+    </div>
+    <div class="floating-card card-3">
+      <div class="ai-processing">
+        <div class="pulse-ring"></div>
+        <div class="ai-icon">🤖</div>
+        <div class="ai-text">Vertex AI Scoring<span class="dots">...</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ADMINISTRATOR DASHBOARD PORTAL (PROPERTY SELLER CONSOLE) ===== -->
+<section class="admin-section" id="admin-portal" style="display:none; padding: 100px 0;">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag" style="border-color:#10b981;color:#10b981;background:rgba(16,185,129,0.1)">Flat Seller &amp; Manager Console</span>
+      <h2>RentRight <span class="gradient-text" style="background:linear-gradient(135deg,#10b981,#06b6d4)">Flat &amp; Property Seller Portal</span></h2>
+      <p>Post your flat or rental property into the system, set price &amp; safety scores, or manage your active listings database.</p>
+    </div>
+
+    <div class="search-panel glass-card" style="margin-bottom: 3rem; padding: 2.5rem;">
+      <h3 style="margin-bottom: 1.5rem; color: #10b981; font-family: var(--font-display);">🏢 Post / Sell New Flat or Property</h3>
+      <form id="add-property-form" onsubmit="handleAddNewProperty(event)">
+        <div class="search-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+          <div class="form-group">
+            <label class="form-label">Property Name</label>
+            <input type="text" id="admin-name" class="form-input" placeholder="e.g. Royal Meadows" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">City</label>
+            <select class="form-input" id="admin-city" required>
+              <option value="bengaluru">Bengaluru</option>
+              <option value="mumbai">Mumbai</option>
+              <option value="hyderabad">Hyderabad</option>
+              <option value="pune">Pune</option>
+              <option value="chennai">Chennai</option>
+              <option value="delhi">Delhi NCR</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Locality / Area</label>
+            <input type="text" id="admin-area" class="form-input" placeholder="e.g. Bandra East" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Monthly Rent (₹)</label>
+            <input type="number" id="admin-price" class="form-input" placeholder="e.g. 25000" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Type</label>
+            <select class="form-input" id="admin-type" required>
+              <option value="1BHK">1 BHK</option>
+              <option value="2BHK" selected>2 BHK</option>
+              <option value="3BHK">3 BHK</option>
+              <option value="Studio">Studio</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Commute (Minutes)</label>
+            <input type="number" id="admin-commute" class="form-input" placeholder="e.g. 15" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Commute Distance (km)</label>
+            <input type="text" id="admin-distance" class="form-input" placeholder="e.g. 2.5" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Safety Score (1-100)</label>
+            <input type="number" id="admin-safety" class="form-input" min="1" max="100" placeholder="e.g. 85" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Latitude</label>
+            <input type="number" step="any" id="admin-lat" class="form-input" placeholder="e.g. 12.935" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Longitude</label>
+            <input type="number" step="any" id="admin-lng" class="form-input" placeholder="e.g. 77.624" required />
+          </div>
+        </div>
+
+        <div class="form-group full-width" style="margin-top: 1.5rem;">
+          <label class="form-label">Amenities (Select all that apply)</label>
+          <div class="amenity-chips" id="admin-amenities">
+            <button type="button" class="chip" data-amenity="Furnished">🛋️ Furnished</button>
+            <button type="button" class="chip" data-amenity="WiFi">📶 WiFi</button>
+            <button type="button" class="chip" data-amenity="Gym">🏋️ Gym</button>
+            <button type="button" class="chip" data-amenity="Parking">🅿️ Parking</button>
+            <button type="button" class="chip" data-amenity="Pet-friendly">🐾 Pet-Friendly</button>
+            <button type="button" class="chip" data-amenity="24/7 Security">🔒 24/7 Security</button>
+            <button type="button" class="chip" data-amenity="Power Backup">⚡ Power Backup</button>
+            <button type="button" class="chip" data-amenity="CCTV">📹 CCTV</button>
+            <button type="button" class="chip" data-amenity="AC">❄️ AC</button>
+            <button type="button" class="chip" data-amenity="Pool">🏊 Pool</button>
+            <button type="button" class="chip" data-amenity="Garden">🌿 Garden</button>
+          </div>
+        </div>
+
+        <div style="margin-top: 2rem;">
+          <button type="submit" class="btn-primary btn-lg" style="background:linear-gradient(135deg,#10b981,#059669)">
+            🏢 Publish Flat / Property Listing
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Listings Table View -->
+    <div class="glass-card" style="padding: 2.5rem; overflow-x: auto; margin-bottom: 3rem;">
+      <h3 style="margin-bottom: 1.5rem; font-family: var(--font-display);">📂 My Posted Properties (<span id="admin-total-count">0</span>)</h3>
+      <table class="comparison-table" style="min-width: 800px; text-align: left;">
+        <thead>
+          <tr>
+            <th style="text-align: left;">Listing</th>
+            <th>City</th>
+            <th>Type</th>
+            <th>Monthly Price</th>
+            <th>Commute</th>
+            <th>Safety</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="admin-listings-table-body">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Interested Renters Table View -->
+    <div class="glass-card" style="padding: 2.5rem; overflow-x: auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+        <h3 style="margin:0; font-family: var(--font-display); color:var(--accent-primary);">
+          📩 Interested Renters &amp; Tenant Inquiries (<span id="admin-inquiries-count">0</span>)
+        </h3>
+        <span class="ai-badge" style="font-size:0.75rem;">Real-Time Buyer/Renter Leads</span>
+      </div>
+      <table class="comparison-table" style="min-width: 850px; text-align: left;">
+        <thead>
+          <tr>
+            <th style="text-align: left;">Target Flat / Property</th>
+            <th>Tenant Name</th>
+            <th>Contact Details</th>
+            <th>Target Move-In</th>
+            <th>Tenant Message</th>
+            <th>Received Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="admin-inquiries-table-body">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===== HOW IT WORKS ===== -->
+<section class="how-it-works" id="how-it-works">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Simple Process</span>
+      <h2>From Input to Perfect Home in <span class="gradient-text">3 Steps</span></h2>
+      <p>Our AI engine does the heavy lifting so you don't have to.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-number">01</div>
+        <div class="step-icon">🎯</div>
+        <h3>Enter Your Preferences</h3>
+        <p>Set your budget, type in your workplace or college address, choose commute mode, and pick your must-have amenities.</p>
+      </div>
+      <div class="step-connector"><svg width="40" height="16" viewBox="0 0 40 16"><path d="M0 8h36M30 2l6 6-6 6" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="step-card">
+        <div class="step-number">02</div>
+        <div class="step-icon">🧠</div>
+        <h3>AI Analyzes &amp; Scores</h3>
+        <p>Vertex AI scores every listing across rent affordability, commute distance, transit access, neighborhood safety, amenities, and tenant reviews.</p>
+      </div>
+      <div class="step-connector"><svg width="40" height="16" viewBox="0 0 40 16"><path d="M0 8h36M30 2l6 6-6 6" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="step-card">
+        <div class="step-number">03</div>
+        <div class="step-icon">🏆</div>
+        <h3>Get Ranked Recommendations</h3>
+        <p>Receive a personalized shortlist with detailed score breakdowns, side-by-side comparisons, and one-click contact with landlords.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SEARCH SECTION ===== -->
+<section class="search-section" id="search-section">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">AI Recommendation Engine</span>
+      <h2>Find Your <span class="gradient-text">Perfect Rental</span></h2>
+      <p>Fill in your details and get rental matches ranked around your priorities.</p>
+    </div>
+
+    <div class="search-panel glass-card">
+      <!-- Step 1: Budget -->
+      <div class="search-step active" id="step-1">
+        <div class="step-label"><span class="step-badge">1</span> Budget &amp; Location</div>
+        <div class="search-grid">
+          <div class="form-group">
+            <label class="form-label">Monthly Budget</label>
+            <div class="budget-display">₹<span id="budget-value">25,000</span>/mo</div>
+            <input type="range" id="budget-slider" class="budget-slider" min="5000" max="100000" step="500" value="25000" />
+            <div class="slider-range"><span>₹5,000</span><span>₹1,00,000</span></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preferred Area / Workplace</label>
+            <div class="location-input-wrap">
+              <span class="location-icon">📍</span>
+              <input type="text" id="location-input" class="form-input" placeholder="e.g. Koramangala, Bengaluru" value="" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">City</label>
+            <select class="form-input" id="city-select">
+              <option value="bengaluru">Bengaluru</option>
+              <option value="mumbai">Mumbai</option>
+              <option value="hyderabad">Hyderabad</option>
+              <option value="pune">Pune</option>
+              <option value="chennai">Chennai</option>
+              <option value="delhi">Delhi NCR</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Property Type</label>
+            <div class="type-toggle">
+              <button class="type-btn active" data-type="">All types</button>
+              <button class="type-btn" data-type="1bhk">1 BHK</button>
+              <button class="type-btn" data-type="2bhk">2 BHK</button>
+              <button class="type-btn" data-type="3bhk">3 BHK</button>
+              <button class="type-btn" data-type="studio">Studio</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Commute -->
+      <div class="search-step" id="step-2">
+        <div class="step-label"><span class="step-badge">2</span> Commute Preferences</div>
+        <div class="search-grid">
+          <div class="form-group full-width">
+            <label class="form-label">Preferred Commute Mode</label>
+            <div class="commute-options">
+              <label class="commute-option">
+                <input type="radio" name="commute" value="walking" id="commute-walk"/>
+                <span class="commute-card"><span class="commute-icon">🚶</span><span>Walking</span></span>
+              </label>
+              <label class="commute-option">
+                <input type="radio" name="commute" value="cycling" id="commute-cycle"/>
+                <span class="commute-card"><span class="commute-icon">🚴</span><span>Cycling</span></span>
+              </label>
+              <label class="commute-option">
+                <input type="radio" name="commute" value="public" id="commute-public" checked/>
+                <span class="commute-card active"><span class="commute-icon">🚌</span><span>Public Transit</span></span>
+              </label>
+              <label class="commute-option">
+                <input type="radio" name="commute" value="driving" id="commute-drive"/>
+                <span class="commute-card"><span class="commute-icon">🚗</span><span>Driving</span></span>
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Commute Time</label>
+            <div class="budget-display"><span id="commute-value">30</span> mins</div>
+            <input type="range" id="commute-slider" class="budget-slider" min="10" max="90" step="5" value="30" />
+            <div class="slider-range"><span>10 min</span><span>90 min</span></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Walking Distance to Transit</label>
+            <div class="budget-display"><span id="walk-value">500</span> m</div>
+            <input type="range" id="walk-slider" class="budget-slider" min="100" max="2000" step="100" value="500" />
+            <div class="slider-range"><span>100m</span><span>2km</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Amenities -->
+      <div class="search-step" id="step-3">
+        <div class="step-label"><span class="step-badge">3</span> Amenities &amp; Safety</div>
+        <div class="form-group full-width">
+          <label class="form-label">Must-Have Amenities</label>
+          <div class="amenity-chips" id="amenity-chips">
+            <button class="chip" data-amenity="furnished">🛋️ Furnished</button>
+            <button class="chip" data-amenity="wifi">📶 WiFi</button>
+            <button class="chip" data-amenity="gym">🏋️ Gym</button>
+            <button class="chip" data-amenity="parking">🅿️ Parking</button>
+            <button class="chip" data-amenity="pet">🐾 Pet-Friendly</button>
+            <button class="chip" data-amenity="security">🔒 24/7 Security</button>
+            <button class="chip" data-amenity="power">⚡ Power Backup</button>
+            <button class="chip" data-amenity="laundry">👕 Laundry</button>
+            <button class="chip" data-amenity="pool">🏊 Pool</button>
+            <button class="chip" data-amenity="garden">🌿 Garden</button>
+            <button class="chip" data-amenity="ac">❄️ AC</button>
+            <button class="chip" data-amenity="cctv">📹 CCTV</button>
+          </div>
+        </div>
+        <div class="form-group full-width" style="margin-top:1.5rem">
+          <label class="form-label">Minimum Safety Score</label>
+          <div class="safety-rating">
+            <div class="safety-stars" id="safety-stars">
+              <button class="star-btn active" data-val="1">★</button>
+              <button class="star-btn active" data-val="2">★</button>
+              <button class="star-btn active" data-val="3">★</button>
+              <button class="star-btn" data-val="4">★</button>
+              <button class="star-btn" data-val="5">★</button>
+            </div>
+            <span class="safety-label" id="safety-label">Good (3+)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="search-actions">
+        <button class="btn-primary btn-lg btn-full" id="find-btn" onclick="startAISearch()">
+          <span class="btn-icon">🤖</span>
+          <span>Analyze My Preferences</span>
+          <svg class="btn-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== AI PROCESSING OVERLAY ===== -->
+<div class="ai-overlay" id="ai-overlay" style="display:none">
+  <div class="ai-modal glass-card">
+    <div class="ai-logo">
+      <div class="ai-orb">
+        <div class="orb-ring r1"></div>
+        <div class="orb-ring r2"></div>
+        <div class="orb-ring r3"></div>
+        <span class="orb-core">AI</span>
+      </div>
+    </div>
+    <h3 class="ai-title">Analyzing your rental preferences</h3>
+    <div class="ai-steps-list" id="ai-steps-list">
+      <div class="ai-step-item" data-step="0"><span class="step-icon-sm">📍</span> Reading your budget and location preferences...</div>
+      <div class="ai-step-item" data-step="1"><span class="step-icon-sm">🛡️</span> Evaluating neighborhood safety scores...</div>
+      <div class="ai-step-item" data-step="2"><span class="step-icon-sm">💰</span> Calculating affordability index...</div>
+      <div class="ai-step-item" data-step="3"><span class="step-icon-sm">🚌</span> Comparing commute requirements...</div>
+      <div class="ai-step-item" data-step="4"><span class="step-icon-sm">🏋️</span> Matching amenity preferences...</div>
+      <div class="ai-step-item" data-step="5"><span class="step-icon-sm">⭐</span> Scoring property details and tenant reviews...</div>
+      <div class="ai-step-item" data-step="6"><span class="step-icon-sm">🧠</span> Ranking your best rental matches...</div>
+    </div>
+    <div class="ai-progress-bar">
+      <div class="ai-progress-fill" id="ai-progress-fill"></div>
+    </div>
+    <p class="ai-status" id="ai-status">Initializing Vertex AI pipeline...</p>
+  </div>
+</div>
+
+<!-- ===== RESULTS SECTION ===== -->
+<section class="results-section" id="results-section" style="display:none">
+  <div class="container">
+    <div class="results-header">
+      <div>
+        <h2>Your AI-Matched Results</h2>
+        <p class="results-sub">Ranked by Vertex AI match score · <span id="results-count">8</span> listings found</p>
+      </div>
+      <div class="results-controls">
+        <select class="form-input form-input-sm" id="sort-select" onchange="sortResults()">
+          <option value="score">Sort: Best Match</option>
+          <option value="price-asc">Sort: Price ↑</option>
+          <option value="price-desc">Sort: Price ↓</option>
+          <option value="distance">Sort: Distance</option>
+          <option value="safety">Sort: Safety</option>
+        </select>
+        <button class="btn-outline" onclick="showComparison()">⚖️ Compare Top 3</button>
+      </div>
+    </div>
+
+    <div class="listings-grid" id="listings-grid">
+      <!-- Populated by JS -->
+    </div>
+
+    <div class="compare-cta">
+      <button class="btn-primary btn-lg" onclick="showComparison()">
+        ⚖️ Side-by-Side Comparison of Top 3
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== COMPARISON TABLE ===== -->
+<div class="comparison-overlay" id="comparison-overlay" style="display:none">
+  <div class="comparison-modal">
+    <div class="comparison-header">
+      <h2>⚖️ Side-by-Side Comparison</h2>
+      <button class="close-btn" onclick="closeComparison()">✕</button>
+    </div>
+    <div class="comparison-scroll">
+      <table class="comparison-table" id="comparison-table">
+        <!-- Populated by JS -->
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PROPERTY DETAIL MODAL ===== -->
+<div class="property-overlay" id="property-overlay" style="display:none">
+  <div class="property-modal glass-card">
+    <button class="close-btn property-close" onclick="closeProperty()">✕</button>
+    <div class="property-content" id="property-content">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ===== TECH STACK SECTION ===== -->
+<section class="tech-stack" id="tech-stack">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Powered By Google Cloud</span>
+      <h2>Enterprise-Grade <span class="gradient-text">Technology Stack</span></h2>
+      <p>Built on GCP's most powerful infrastructure and AI services.</p>
+    </div>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="tech-logo">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="#1a1040"/><path d="M24 8l14 8v16L24 40 10 32V16L24 8z" fill="#6366f1" opacity="0.2"/><path d="M24 8l14 8v16L24 40 10 32V16L24 8z" fill="none" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="24" r="6" fill="#6366f1"/></svg>
+        </div>
+        <h3>Vertex AI</h3>
+        <p>Personalized ML ranking model trained on rental preference signals for each user profile.</p>
+        <div class="tech-tag">Recommendations</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-logo">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="#0c2a38"/><rect x="10" y="20" width="10" height="18" rx="2" fill="#06b6d4"/><rect x="23" y="14" width="10" height="24" rx="2" fill="#06b6d4" opacity="0.7"/><rect x="36" y="8" width="10" height="30" rx="2" fill="#06b6d4" opacity="0.4"/></svg>
+        </div>
+        <h3>BigQuery</h3>
+        <p>Analytics warehouse powering historical rental price trends, occupancy rates, and neighborhood insights.</p>
+        <div class="tech-tag">Analytics</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-logo">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="#0a1a2e"/><path d="M24 12C17.4 12 12 17.4 12 24s5.4 12 12 12 12-5.4 12-12S30.6 12 24 12z" fill="#4285f4" opacity="0.3"/><path d="M24 12C17.4 12 12 17.4 12 24" stroke="#4285f4" stroke-width="2"/><circle cx="24" cy="30" r="3" fill="#ea4335"/><path d="M24 18v6l4 2" stroke="#fbbc04" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Google Maps Platform</h3>
+        <p>Real-time distance matrix, transit routing, and neighborhood heatmaps for commute analysis.</p>
+        <div class="tech-tag">Geospatial</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-logo">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="#0f1f0a"/><circle cx="24" cy="18" r="6" fill="#34a853"/><path d="M12 38c0-6.6 5.4-12 12-12s12 5.4 12 12" fill="#34a853" opacity="0.4"/></svg>
+        </div>
+        <h3>Cloud Run</h3>
+        <p>Serverless container platform scaling the recommendation API to handle thousands of concurrent users.</p>
+        <div class="tech-tag">Infrastructure</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-logo">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="#1a0f2e"/><rect x="12" y="12" width="10" height="10" rx="2" fill="#8b5cf6"/><rect x="26" y="12" width="10" height="10" rx="2" fill="#8b5cf6" opacity="0.6"/><rect x="12" y="26" width="10" height="10" rx="2" fill="#8b5cf6" opacity="0.6"/><rect x="26" y="26" width="10" height="10" rx="2" fill="#8b5cf6" opacity="0.3"/></svg>
+        </div>
+        <h3>Firestore</h3>
+        <p>Real-time NoSQL database storing user profiles, saved listings, and preference history with sub-100ms reads.</p>
+        <div class="tech-tag">Database</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-logo">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="#1a1a0a"/><path d="M24 10l4 8h8l-6.5 5 2.5 8L24 26l-8 5 2.5-8L12 18h8l4-8z" fill="#fbbc04"/></svg>
+        </div>
+        <h3>Cloud Storage</h3>
+        <p>Scalable object store for property images, virtual tour assets, and neighbourhood photo datasets.</p>
+        <div class="tech-tag">Storage</div>
+      </div>
+    </div>
+
+    <div class="architecture-banner">
+      <div class="arch-flow">
+        <div class="arch-node">User Input</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node highlight">Cloud Run API</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">Vertex AI</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">BigQuery + Firestore</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node highlight">Ranked Results</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TESTIMONIALS ===== -->
+<section class="testimonials" id="testimonials">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">What Renters Say</span>
+      <h2>Trusted by <span class="gradient-text">4,200+ Renters</span></h2>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card glass-card">
+        <div class="stars">★★★★★</div>
+        <p>"Found a 2BHK within my ₹20k budget that's literally a 12-minute walk from my office. The AI score was 91 and it was absolutely spot on."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">P</div>
+          <div><strong>Priya Sharma</strong><span>Software Engineer, Bengaluru</span></div>
+        </div>
+      </div>
+      <div class="testimonial-card glass-card">
+        <div class="stars">★★★★★</div>
+        <p>"As a college student, safety was my top priority. RentRight's safety scoring gave me confidence to move into a new city alone. The transit score was perfect!"</p>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">A</div>
+          <div><strong>Arjun Mehta</strong><span>MBA Student, Hyderabad</span></div>
+        </div>
+      </div>
+      <div class="testimonial-card glass-card">
+        <div class="stars">★★★★★</div>
+        <p>"The comparison table feature is a game-changer. I could instantly see why one apartment scored higher on amenities even though it cost ₹2,000 more. Worth every rupee."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:linear-gradient(135deg,#f59e0b,#d97706)">R</div>
+          <div><strong>Riya Patel</strong><span>UX Designer, Pune</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CTA SECTION ===== -->
+<section class="cta-section">
+  <div class="container">
+    <div class="cta-card glass-card">
+      <div class="cta-glow"></div>
+      <h2>Ready to find the <span class="gradient-text">right place to live?</span></h2>
+      <p>Join 4,200+ renters who found their perfect home with AI-powered matching.</p>
+      <a href="#search-section" class="btn-primary btn-lg">
+        Start Your Search
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="#" class="logo">
+          <svg class="logo-svg" viewBox="0 0 100 100" width="36" height="36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="pinGradFoot" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0052d4" />
+                <stop offset="50%" stop-color="#4364f7" />
+                <stop offset="100%" stop-color="#6fb1fc" />
+              </linearGradient>
+            </defs>
+            <path d="M50 90C72 68 85 49 85 32C85 13 69 0 50 0C31 0 15 13 15 32C15 49 28 68 50 90Z" fill="url(#pinGradFoot)"/>
+            <circle cx="50" cy="32" r="22" fill="#ffffff" />
+            <path d="M50 18L32 32V47H42V37H58V47H68V32L50 18Z" fill="#0052d4" />
+            <rect x="47" y="27" width="6" height="6" fill="#ffffff" />
+          </svg>
+          <span class="logo-text">Rent<span class="logo-accent">Right</span></span>
+        </a>
+        <p>Don't just find a house — find the right place to live.</p>
+        <div class="footer-gcp">
+          <span class="gcp-badge">☁️ Powered by Google Cloud</span>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <ul>
+          <li><a href="#search-section">Find a Home</a></li>
+          <li><a href="#how-it-works">How It Works</a></li>
+          <li><a href="#tech-stack">Technology</a></li>
+          <li><a href="#testimonials">Reviews</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Technology</h4>
+        <ul>
+          <li><a href="#">Vertex AI</a></li>
+          <li><a href="#">Google Maps</a></li>
+          <li><a href="#">BigQuery</a></li>
+          <li><a href="#">Cloud Run</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Cities</h4>
+        <ul>
+          <li><a href="#">Bengaluru</a></li>
+          <li><a href="#">Mumbai</a></li>
+          <li><a href="#">Hyderabad</a></li>
+          <li><a href="#">Pune</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 RentRight. Built with ❤️ on Google Cloud Platform.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ===== AUTHENTICATION MODAL (LOGIN / REGISTER) ===== -->
+<div class="property-overlay" id="auth-overlay" style="display:none">
+  <div class="property-modal glass-card" style="max-width:440px; padding:2.5rem;">
+    <button class="close-btn property-close" onclick="closeAuthModal()">✕</button>
+    
+    <div style="text-align:center; margin-bottom:1.5rem;">
+      <div style="font-size:2.2rem; margin-bottom:0.5rem;">🔐</div>
+      <h3 id="auth-modal-title" style="font-family:var(--font-display); font-size:1.5rem; margin-bottom:0.25rem;">Sign In to RentRight</h3>
+      <p id="auth-modal-sub" style="font-size:0.85rem; color:var(--text-muted);">Access recommendations &amp; administrator portal</p>
+    </div>
+
+    <!-- Role Switcher Tabs -->
+    <div style="display:flex; background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); border-radius:50px; padding:0.25rem; margin-bottom:1.5rem;">
+      <button class="type-btn active" id="auth-role-user" style="flex:1; border:none; text-align:center; border-radius:50px;" onclick="setAuthRole('user')">👤 User / Renter</button>
+      <button class="type-btn" id="auth-role-admin" style="flex:1; border:none; text-align:center; border-radius:50px;" onclick="setAuthRole('admin')">💼 Administrator</button>
+    </div>
+
+    <!-- Error / Success Alert -->
+    <div id="auth-alert" style="display:none; padding:0.75rem 1rem; border-radius:var(--radius-md); font-size:0.85rem; margin-bottom:1.25rem; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#fca5a5;"></div>
+
+    <!-- Form -->
+    <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+      <div class="form-group" id="auth-name-group" style="display:none; margin-bottom:1rem;">
+        <label class="form-label">Full Name</label>
+        <input type="text" id="auth-name" class="form-input" placeholder="e.g. Alex Sharma" />
+      </div>
+      
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label class="form-label">Email Address</label>
+        <input type="email" id="auth-email" class="form-input" placeholder="name@domain.com" required />
+      </div>
+
+      <div class="form-group" style="margin-bottom:1.5rem;">
+        <label class="form-label">Password</label>
+        <input type="password" id="auth-password" class="form-input" placeholder="••••••••" required />
+      </div>
+
+      <button type="submit" id="auth-submit-btn" class="btn-primary btn-lg btn-full" style="margin-bottom:1.25rem;">
+        Sign In
+      </button>
+    </form>
+
+    <!-- Demo Autofill Buttons -->
+    <div style="background:rgba(99,102,241,0.06); border:1px solid var(--border-accent); border-radius:var(--radius-md); padding:1rem; text-align:center; margin-bottom:1.25rem;">
+      <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.5rem;">⚡ Quick Demo Login</div>
+      <div style="display:flex; gap:0.5rem;">
+        <button type="button" class="btn-outline btn-sm" style="flex:1; justify-content:center;" onclick="fillDemoCredentials('admin')">🔑 Demo Admin</button>
+        <button type="button" class="btn-outline btn-sm" style="flex:1; justify-content:center;" onclick="fillDemoCredentials('user')">👤 Demo User</button>
+      </div>
+    </div>
+
+    <!-- Toggle Sign In vs Register -->
+    <div style="text-align:center; font-size:0.85rem; color:var(--text-secondary);">
+      <span id="auth-toggle-text">Don't have an account?</span>
+      <a href="#" id="auth-toggle-link" style="color:var(--accent-primary); font-weight:600; margin-left:0.3rem;" onclick="toggleAuthMode(event)">Register Now</a>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TENANT INQUIRY MODAL (EXPRESS INTEREST IN RENTING) ===== -->
+<div class="property-overlay" id="inquiry-overlay" style="display:none">
+  <div class="property-modal glass-card" style="max-width:480px; padding:2.5rem;">
+    <button class="close-btn property-close" onclick="closeInquiryModal()">✕</button>
+    
+    <div style="text-align:center; margin-bottom:1.5rem;">
+      <div style="font-size:2.2rem; margin-bottom:0.5rem;">🏡</div>
+      <h3 style="font-family:var(--font-display); font-size:1.4rem; margin-bottom:0.25rem;">Express Interest in Renting</h3>
+      <p style="font-size:0.85rem; color:var(--text-muted);" id="inquiry-target-flat">Property: <strong id="inquiry-flat-name">Flat</strong></p>
+    </div>
+
+    <div id="inquiry-alert" style="display:none; padding:0.75rem 1rem; border-radius:var(--radius-md); font-size:0.85rem; margin-bottom:1.25rem;"></div>
+
+    <form id="inquiry-form" onsubmit="handleInquirySubmit(event)">
+      <input type="hidden" id="inquiry-listing-id" />
+      <input type="hidden" id="inquiry-owner-email" />
+
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label class="form-label">Your Name</label>
+        <input type="text" id="inquiry-user-name" class="form-input" placeholder="e.g. Rahul Sharma" required />
+      </div>
+
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label class="form-label">Contact Phone Number</label>
+        <input type="tel" id="inquiry-phone" class="form-input" placeholder="e.g. +91 98765 43210" required />
+      </div>
+
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label class="form-label">Email Address</label>
+        <input type="email" id="inquiry-user-email" class="form-input" placeholder="rahul@example.com" required />
+      </div>
+
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label class="form-label">Target Move-in Date</label>
+        <input type="date" id="inquiry-move-date" class="form-input" required />
+      </div>
+
+      <div class="form-group" style="margin-bottom:1.5rem;">
+        <label class="form-label">Message for Property Owner</label>
+        <textarea id="inquiry-message" class="form-input" rows="3" placeholder="I am interested in taking this property on rent. Please contact me for a visit."></textarea>
+      </div>
+
+      <button type="submit" class="btn-primary btn-lg btn-full" style="background:linear-gradient(135deg,#10b981,#059669)">
+        📩 Send Interest to Landlord
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- HERE Maps API Libraries -->
+<script src="https://js.api.here.com/v3/3.1/mapsjs-core.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://js.api.here.com/v3/3.1/mapsjs-service.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://js.api.here.com/v3/3.1/mapsjs-mapevents.js" type="text/javascript" charset="utf-8"></script>
+
+<script src="runtime-config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
