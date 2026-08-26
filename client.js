@@ -2094,9 +2094,7 @@ async function handleAddNewProperty(event) {
     color: "#6366f1",
     lat: lat,
     lng: lng,
-    reviews: [
-      { stars: 5, text: "Newly published property by flat owner.", author: currentEmail }
-    ]
+    reviews: []
   };
 
   // 1. Immediately persist to localStorage
@@ -2167,24 +2165,10 @@ function loadAdminListings() {
     });
   });
 
-  // Filter properties owned/posted by this specific logged in Administrator
-  var customItems = getCustomListingsFromStorage();
+  // Strict ownership: ONLY properties whose ownerEmail matches this logged-in admin
   var myItems = allItems.filter(function(item) {
     var itemEmail = String(item.ownerEmail || '').trim().toLowerCase();
-    if (!itemEmail) {
-      return currentAdminEmail === 'admin@rentright.com';
-    }
-    return itemEmail === currentAdminEmail;
-  });
-
-  // Also include any custom property added in this browser session
-  customItems.forEach(function(cItem) {
-    var cEmail = String(cItem.ownerEmail || '').trim().toLowerCase();
-    if (!cEmail || cEmail === currentAdminEmail || currentAdminEmail === 'admin@rentright.com' || (authState.user && authState.user.role === 'admin')) {
-      if (!myItems.some(function(existing) { return existing.id === cItem.id; })) {
-        myItems.unshift(cItem);
-      }
-    }
+    return itemEmail.length > 0 && itemEmail === currentAdminEmail;
   });
 
   if (totalCount) totalCount.textContent = myItems.length;
