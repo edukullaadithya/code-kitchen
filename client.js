@@ -3,6 +3,11 @@ var getApiUrl = function(path) {
   return path;
 };
 
+function cap(str) {
+  if (!str) return '';
+  return String(str).charAt(0).toUpperCase() + String(str).slice(1);
+}
+
 // =============================================
 //  RENTRIGHT — Clean App Logic
 // =============================================
@@ -2183,16 +2188,22 @@ function loadAdminListings() {
 
   myItems.forEach(function (item) {
     var tr = document.createElement('tr');
+    var cityName = item.city ? cap(item.city) : 'Bengaluru';
+    var priceNum = Number(item.price) || 0;
+    var priceStr = '₹' + priceNum.toLocaleString('en-IN');
+    var commuteStr = (item.commute || '10 min') + (item.distance ? ' (' + item.distance + ')' : '');
+    var safetyScore = (item.scores && item.scores.safety != null) ? item.scores.safety : (item.safety || 85);
+
     tr.innerHTML = 
       '<td>' +
-        '<div style="font-weight:600;">' + item.name + '</div>' +
-        '<div style="font-size:0.75rem;color:var(--text-muted);">' + item.area + '</div>' +
+        '<div style="font-weight:600;">' + (item.name || 'Property') + '</div>' +
+        '<div style="font-size:0.75rem;color:var(--text-muted);">' + (item.area || '') + '</div>' +
       '</td>' +
-      '<td>' + cap(item.city) + '</td>' +
-      '<td>' + item.type + '</td>' +
-      '<td>₹' + item.price.toLocaleString('en-IN') + '</td>' +
-      '<td>' + item.commute + ' (' + item.distance + ')</td>' +
-      '<td>' + item.scores.safety + '/100</td>' +
+      '<td>' + cityName + '</td>' +
+      '<td>' + (item.type || '1BHK') + '</td>' +
+      '<td>' + priceStr + '</td>' +
+      '<td>' + commuteStr + '</td>' +
+      '<td>' + safetyScore + '/100</td>' +
       '<td>' +
         '<button class="btn-outline" style="color:var(--accent-red);border-color:rgba(239,68,68,0.3);padding:0.35rem 0.75rem;" onclick="handleDeleteListing(' + item.id + ')">Delete</button>' +
       '</td>';
