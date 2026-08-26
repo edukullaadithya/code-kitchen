@@ -1017,31 +1017,7 @@ function getSearchPreferences() {
 
 async function requestRecommendations(preferences) {
   var localListings = getLocalRecommendations(preferences);
-  try {
-    var response = await fetch(getApiUrl('/api/recommendations'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(preferences)
-    });
-    var payload = await response.json().catch(function () { return {}; });
-    if (response.ok && Array.isArray(payload.listings)) {
-      var merged = payload.listings.slice();
-      // Ensure custom admin properties in this city appear at top if matched
-      localListings.forEach(function(localItem) {
-        var idx = merged.findIndex(function(item) { return item.id === localItem.id; });
-        if (idx === -1) {
-          merged.unshift(localItem);
-        } else {
-          merged[idx] = localItem; // prioritize updated local item
-        }
-      });
-      return merged;
-    }
-    return localListings;
-  } catch (error) {
-    console.warn('Recommendation API unavailable; using local analysis.', error);
-    return localListings;
-  }
+  return localListings;
 }
 
 function normalisePreference(value) {
@@ -1077,49 +1053,84 @@ function matchesWorkplacePreference(listing, workplace) {
 }
 
 function getLocalRecommendations(preferences) {
-  var city = normaliseCityPreference(preferences.city || 'bengaluru');
-  if (!city || !ALL_LISTINGS[city]) return [];
+  // 1. Ensure custom listings from storage are in ALL_LISTINGS
+  mergeCustomListingsIntoAll();
 
-  var candidates = ALL_LISTINGS[city];
+  var city = normaliseCityPreference(preferences.city || 'bengaluru');
+  var workplace = String(preferences.workplace || '').trim();
+  var workplaceNorm = normalisePreference(workplace);
   var budget = Number(preferences.budget) || 0;
   var propertyType = normalisePreference(preferences.propertyType);
-  var workplace = preferences.workplace || '';
-  var minSafety = Number.isFinite(Number(preferences.minSafety))
-    ? Math.min(5, Math.max(1, Number(preferences.minSafety))) * 20
-    : 0;
-  var maxCommute = Number.isFinite(Number(preferences.maxCommute)) && Number(preferences.maxCommute) > 0
-    ? Number(preferences.maxCommute)
-    : Infinity;
+  var maxCommute = Number(preferences.maxCommute) > 0 ? Number(preferences.maxCommute) : Infinity;
   var requestedAmenities = Array.isArray(preferences.amenities)
     ? preferences.amenities.map(normaliseAmenityPreference).filter(Boolean)
     : [];
-  candidates = candidates.filter(function (listing) {
-    var availableAmenities = (listing.amenities || []).map(normalisePreference);
+
+  // Gather candidate properties from selected city
+  var pool = (ALL_LISTINGS[city] || []).slice();
+
+  // If user searched a location keyword, also search across ALL cities to see if that location belongs to another city
+  if (workplaceNorm) {
+    Object.keys(ALL_LISTINGS).forEach(function(cKey) {
+      if (cKey !== city) {
+        (ALL_LISTINGS[cKey] || []).forEach(function(item) {
+          if (matchesWorkplacePreference(item, workplace)) {
+            if (!pool.some(function(p) { return p.id === item.id; })) {
+              pool.push(item);
+            }
+          }
+        });
+      }
+    });
+  }
+
+  if (!pool.length) return [];
+
+  // Score and filter each candidate
+  var scoredCandidates = pool.map(function(listing) {
+    var availAmenities = (listing.amenities || []).map(normalisePreference);
     var commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
-    var safetyScore = (listing.scores && listing.scores.safety) || 80;
-    return (!propertyType || normalisePreference(listing.type) === propertyType) &&
-      safetyScore >= minSafety &&
-      commuteMinutes <= maxCommute &&
-      matchesWorkplacePreference(listing, workplace) &&
-      requestedAmenities.every(function (amenity) { return availableAmenities.indexOf(amenity) !== -1; });
+    
+    // Check match criteria
+    var matchesLocation = matchesWorkplacePreference(listing, workplace);
+    var matchesType = (!propertyType || normalisePreference(listing.type) === propertyType);
+    
+    // Soft scoring for amenities
+    var matchedAmenitiesCount = requestedAmenities.filter(function (amenity) {
+      return availAmenities.indexOf(amenity) !== -1;
+    }).length;
+    var amenityBonus = requestedAmenities.length ? (matchedAmenitiesCount / requestedAmenities.length) * 15 : 5;
+
+    // Location bonus: if property is in the exact area/workplace searched, massive bonus!
+    var locationBonus = (workplaceNorm && matchesLocation) ? 30 : 0;
+
+    // Budget match score
+    var budgetScore = budget ? Math.max(-15, 10 - Math.abs((listing.price || 0) - budget) / budget * 15) : 5;
+
+    // Commute match score
+    var commuteScore = Math.max(-10, 8 - Math.max(0, commuteMinutes - maxCommute) * 0.5);
+
+    // Property type match score
+    var typeScore = matchesType ? 10 : -10;
+
+    var baseScore = listing.score || 85;
+    var finalScore = Math.round(Math.max(10, Math.min(99, baseScore * 0.5 + locationBonus + amenityBonus + budgetScore + commuteScore + typeScore)));
+
+    return Object.assign({}, listing, {
+      score: finalScore,
+      matchedAmenities: matchedAmenitiesCount,
+      isExactLocationMatch: (workplaceNorm && matchesLocation)
+    });
   });
 
-  return candidates
-    .map(function (listing) {
-      var commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
-      var availableAmenities = (listing.amenities || []).map(normalisePreference);
-      var matchedAmenities = requestedAmenities.filter(function (amenity) {
-        return availableAmenities.indexOf(amenity) !== -1;
-      }).length;
-      var amenityScore = requestedAmenities.length ? (matchedAmenities / requestedAmenities.length) * 8 : 0;
-      var budgetScore = budget ? Math.max(-10, 8 - Math.abs(listing.price - budget) / budget * 12) : 0;
-      var commuteScore = Math.max(-8, 6 - Math.max(0, commuteMinutes - maxCommute) * 0.5);
-      var propertyScore = propertyType && normalisePreference(listing.type) === propertyType ? 8 : 0;
-      var baseScore = listing.score || 85;
-      var matchScore = Math.round(Math.max(0, Math.min(100, baseScore * 0.7 + amenityScore + budgetScore + commuteScore + propertyScore)));
-      return Object.assign({}, listing, { score: matchScore, matchedAmenities: matchedAmenities });
-    })
-    .sort(function (a, b) { return b.score - a.score || a.price - b.price; });
+  // Sort by location relevance first, then overall score
+  scoredCandidates.sort(function (a, b) {
+    if (a.isExactLocationMatch && !b.isExactLocationMatch) return -1;
+    if (!a.isExactLocationMatch && b.isExactLocationMatch) return 1;
+    return b.score - a.score || a.price - b.price;
+  });
+
+  return scoredCandidates;
 }
 
 function startAISearch() {
