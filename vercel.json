@@ -1,13 +1,14 @@
 {
   "version": 2,
+  "framework": null,
+  "buildCommand": "",
+  "outputDirectory": ".",
   "rewrites": [
     { "source": "/api/auth/:action", "destination": "/api/auth/[action]" },
     { "source": "/api/listings/:id", "destination": "/api/listings/[id]" },
     { "source": "/api/inquiries/:id", "destination": "/api/inquiries/[id]" },
     { "source": "/runtime-config.js", "destination": "/api/runtime-config" },
-    { "source": "/login", "destination": "/login.html" }
-  ],
-  "redirects": [
+    { "source": "/login", "destination": "/login.html" },
     { "source": "/", "destination": "/login.html" }
   ]
 }
