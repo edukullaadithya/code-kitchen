@@ -1,277 +1,227 @@
 const fs = require('fs');
-const path = require('path');
 
-// ======= api/_supabase.js =======
-fs.writeFileSync('api/_supabase.js', [
-  "const { createClient } = require('@supabase/supabase-js');",
-  "module.exports = createClient(",
-  "  process.env.SUPABASE_URL || '',",
-  "  process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || ''",
-  ");"
-].join('\n'));
+// ===== vercel.json =====
+fs.writeFileSync('vercel.json', JSON.stringify({
+  "version": 2,
+  "builds": [
+    { "src": "api/**/*.js", "use": "@vercel/node" },
+    { "src": "*.html", "use": "@vercel/static" },
+    { "src": "*.css", "use": "@vercel/static" },
+    { "src": "app.js", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/auth/(.+)", "dest": "/api/auth/[action]?action=$1" },
+    { "src": "/api/listings/(.+)", "dest": "/api/listings/[id]?id=$1" },
+    { "src": "/api/inquiries/(.+)", "dest": "/api/inquiries/[id]?id=$1" },
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/runtime-config.js", "dest": "/api/runtime-config" },
+    { "src": "/login", "dest": "/login.html" },
+    { "src": "/", "dest": "/login.html" }
+  ]
+}, null, 2));
+console.log('1/7 vercel.json');
 
-// ======= api/auth/[action].js =======
-fs.writeFileSync('api/auth/[action].js', [
-  "const crypto = require('crypto');",
-  "const supabase = require('../_supabase');",
-  "function hash(p) { return crypto.createHash('sha256').update(p + '_rentright_salt').digest('hex'); }",
-  "function cors(res) {",
-  "  res.setHeader('Access-Control-Allow-Origin','*');",
-  "  res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');",
-  "  res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');",
-  "}",
-  "module.exports = async function(req, res) {",
-  "  cors(res);",
-  "  if (req.method === 'OPTIONS') return res.status(204).end();",
-  "  const action = req.query.action;",
-  "  if (action === 'register' && req.method === 'POST') {",
-  "    const { name, email, password, role } = req.body || {};",
-  "    if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required.' });",
-  "    const ce = email.trim().toLowerCase();",
-  "    if (!/^\\S+@\\S+\\.\\S+$/.test(ce)) return res.status(400).json({ error: 'Enter a valid email address.' });",
-  "    if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });",
-  "    const r = role === 'admin' ? 'admin' : 'user';",
-  "    const { data, error } = await supabase.from('users').insert([{ name: name.trim(), email: ce, password_hash: hash(password), role: r }]).select().single();",
-  "    if (error) return res.status(400).json({ error: error.message.includes('unique') ? 'An account with this email already exists.' : error.message });",
-  "    return res.status(201).json({ success: true, token: data.id, user: { id: data.id, name: data.name, email: data.email, role: data.role } });",
-  "  }",
-  "  if (action === 'login' && req.method === 'POST') {",
-  "    const { email, password, role } = req.body || {};",
-  "    if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });",
-  "    const ce = email.trim().toLowerCase();",
-  "    const { data: users } = await supabase.from('users').select('*').eq('email', ce).eq('password_hash', hash(password));",
-  "    if (!users || !users.length) return res.status(400).json({ error: 'Invalid email or password.' });",
-  "    const u = users[0];",
-  "    if (role && role !== u.role) return res.status(400).json({ error: 'This account is registered as a ' + u.role + '. Please log in using the correct role tab.' });",
-  "    return res.status(200).json({ success: true, token: u.id, user: { id: u.id, name: u.name, email: u.email, role: u.role } });",
-  "  }",
-  "  if (action === 'me' && req.method === 'GET') {",
-  "    const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();",
-  "    if (!token) return res.status(401).json({ error: 'Not authenticated' });",
-  "    const { data: users } = await supabase.from('users').select('id,name,email,role').eq('id', token);",
-  "    if (!users || !users.length) return res.status(401).json({ error: 'Not authenticated' });",
-  "    return res.status(200).json({ user: users[0] });",
-  "  }",
-  "  if (action === 'logout') return res.status(200).json({ success: true });",
-  "  return res.status(404).json({ error: 'Not found' });",
-  "};"
-].join('\n'));
+// ===== api/auth/[action].js =====
+fs.writeFileSync('api/auth/[action].js', `const { USERS, SESSIONS, hashPassword, setCorsHeaders } = require('../_shared/data');
+const crypto = require('crypto');
 
-// ======= api/listings.js =======
-fs.writeFileSync('api/listings.js', [
-  "const supabase = require('./_supabase');",
-  "function cors(res) {",
-  "  res.setHeader('Access-Control-Allow-Origin','*');",
-  "  res.setHeader('Access-Control-Allow-Methods','GET,POST,DELETE,OPTIONS');",
-  "  res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');",
-  "}",
-  "function normaliseCity(v) {",
-  "  const a = { bangalore:'bengaluru',bengaluru:'bengaluru',bombay:'mumbai',mumbai:'mumbai',",
-  "    hyderabad:'hyderabad',pune:'pune',chennai:'chennai',madras:'chennai',",
-  "    delhi:'delhi',delhincr:'delhi',ncr:'delhi',gurugram:'delhi',gurgaon:'delhi' };",
-  "  return a[String(v||'').trim().toLowerCase().replace(/[^a-z0-9]/g,'')] || String(v||'').trim().toLowerCase();",
-  "}",
-  "module.exports = async function(req, res) {",
-  "  cors(res);",
-  "  if (req.method === 'OPTIONS') return res.status(204).end();",
-  "  if (req.method === 'GET') {",
-  "    const { data, error } = await supabase.from('listings').select('*').order('created_at', { ascending: false });",
-  "    if (error) return res.status(500).json({ error: error.message });",
-  "    // Group by city for compatibility",
-  "    const grouped = {};",
-  "    for (const row of data) {",
-  "      const city = row.city || 'other';",
-  "      if (!grouped[city]) grouped[city] = [];",
-  "      const listing = { id: row.id, name: row.name, area: row.area, city: row.city,",
-  "        type: row.type, price: row.price, score: row.score, distance: row.distance,",
-  "        commute: row.commute, ownerEmail: row.owner_email, tags: row.tags || [],",
-  "        amenities: row.amenities || [], scores: row.scores || {}, reviews: row.reviews || [],",
-  "        icon: row.icon, color: row.color, lat: row.lat, lng: row.lng };",
-  "      grouped[city].push(listing);",
-  "    }",
-  "    return res.status(200).json({ listings: grouped });",
-  "  }",
-  "  if (req.method === 'POST') {",
-  "    const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();",
-  "    let ownerEmail = (req.body || {}).ownerEmail || 'admin@rentright.com';",
-  "    if (token) {",
-  "      const { data: users } = await supabase.from('users').select('email').eq('id', token);",
-  "      if (users && users.length) ownerEmail = users[0].email;",
-  "    }",
-  "    const b = req.body || {};",
-  "    if (!b.name || !b.city || !b.area || !b.price) return res.status(400).json({ error: 'Name, city, area and price are required.' });",
-  "    const city = normaliseCity(b.city);",
-  "    const { data, error } = await supabase.from('listings').insert([{",
-  "      name: b.name, city: city, area: b.area, type: b.type || '1BHK',",
-  "      price: Number(b.price), score: b.score || 80, distance: b.distance || '1 km',",
-  "      commute: b.commute || '10 min', owner_email: ownerEmail,",
-  "      tags: b.tags || [], amenities: b.amenities || [], scores: b.scores || {},",
-  "      reviews: b.reviews || [], icon: b.icon || '🏢', color: b.color || '#6366f1',",
-  "      lat: b.lat || 0, lng: b.lng || 0",
-  "    }]).select().single();",
-  "    if (error) return res.status(400).json({ error: error.message });",
-  "    return res.status(201).json({ success: true, listing: { ...data, ownerEmail: data.owner_email } });",
-  "  }",
-  "  return res.status(405).json({ error: 'Method not allowed' });",
-  "};"
-].join('\n'));
+module.exports = async function(req, res) {
+  setCorsHeaders(res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  const action = req.query.action;
 
-// ======= api/listings/[id].js =======
-if (!fs.existsSync('api/listings')) fs.mkdirSync('api/listings');
-fs.writeFileSync('api/listings/[id].js', [
-  "const supabase = require('../_supabase');",
-  "function cors(res) {",
-  "  res.setHeader('Access-Control-Allow-Origin','*');",
-  "  res.setHeader('Access-Control-Allow-Methods','DELETE,OPTIONS');",
-  "  res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');",
-  "}",
-  "module.exports = async function(req, res) {",
-  "  cors(res);",
-  "  if (req.method === 'OPTIONS') return res.status(204).end();",
-  "  if (req.method === 'DELETE') {",
-  "    const id = req.query.id;",
-  "    const { error } = await supabase.from('listings').delete().eq('id', id);",
-  "    if (error) return res.status(400).json({ error: error.message });",
-  "    return res.status(200).json({ success: true });",
-  "  }",
-  "  return res.status(405).json({ error: 'Method not allowed' });",
-  "};"
-].join('\n'));
+  if (action === 'register' && req.method === 'POST') {
+    const { name, email, password, role } = req.body || {};
+    if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required.' });
+    const cleanEmail = email.trim().toLowerCase();
+    if (USERS.some(u => u.email === cleanEmail)) return res.status(400).json({ error: 'An account with this email already exists.' });
+    if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    const newUser = {
+      id: 'usr_' + Date.now(),
+      name: name.trim(),
+      email: cleanEmail,
+      password: hashPassword(password),
+      role: role === 'admin' ? 'admin' : 'user',
+      createdAt: new Date().toISOString()
+    };
+    USERS.push(newUser);
+    const token = crypto.randomUUID();
+    const userPayload = { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role };
+    SESSIONS.set(token, userPayload);
+    return res.status(201).json({ success: true, token, user: userPayload });
+  }
 
-// ======= api/inquiries.js =======
-fs.writeFileSync('api/inquiries.js', [
-  "const supabase = require('./_supabase');",
-  "function cors(res) {",
-  "  res.setHeader('Access-Control-Allow-Origin','*');",
-  "  res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');",
-  "  res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');",
-  "}",
-  "module.exports = async function(req, res) {",
-  "  cors(res);",
-  "  if (req.method === 'OPTIONS') return res.status(204).end();",
-  "  if (req.method === 'GET') {",
-  "    const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();",
-  "    let ownerEmail = req.query.ownerEmail || 'admin@rentright.com';",
-  "    if (token) {",
-  "      const { data: users } = await supabase.from('users').select('email').eq('id', token);",
-  "      if (users && users.length) ownerEmail = users[0].email;",
-  "    }",
-  "    const { data, error } = await supabase.from('inquiries').select('*').eq('owner_email', ownerEmail).order('created_at', { ascending: false });",
-  "    if (error) return res.status(500).json({ error: error.message });",
-  "    const inquiries = (data || []).map(r => ({ id: r.id, listingId: r.listing_id, listingName: r.listing_name,",
-  "      ownerEmail: r.owner_email, userName: r.user_name, userEmail: r.user_email,",
-  "      phone: r.phone, moveInDate: r.move_in_date, message: r.message, createdAt: r.created_at }));",
-  "    return res.status(200).json({ inquiries });",
-  "  }",
-  "  if (req.method === 'POST') {",
-  "    const b = req.body || {};",
-  "    if (!b.listingName || !b.userName || !b.phone) return res.status(400).json({ error: 'Name, phone, and property name are required.' });",
-  "    const id = 'inq_' + Date.now();",
-  "    const { data, error } = await supabase.from('inquiries').insert([{",
-  "      id, listing_id: b.listingId || null, listing_name: b.listingName,",
-  "      owner_email: b.ownerEmail || 'admin@rentright.com',",
-  "      user_name: b.userName, user_email: b.userEmail || '', phone: b.phone,",
-  "      move_in_date: b.moveInDate || null, message: b.message || ''",
-  "    }]).select().single();",
-  "    if (error) return res.status(400).json({ error: error.message });",
-  "    return res.status(201).json({ success: true, inquiry: data });",
-  "  }",
-  "  return res.status(405).json({ error: 'Method not allowed' });",
-  "};"
-].join('\n'));
+  if (action === 'login' && req.method === 'POST') {
+    const { email, password, role } = req.body || {};
+    if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });
+    const cleanEmail = email.trim().toLowerCase();
+    const hashed = hashPassword(password);
+    const user = USERS.find(u => u.email === cleanEmail && u.password === hashed);
+    if (!user) return res.status(400).json({ error: 'Invalid email or password.' });
+    if (role && role !== user.role) return res.status(400).json({ error: 'This account is registered as a ' + user.role + '. Please log in using the correct role tab.' });
+    const token = crypto.randomUUID();
+    const userPayload = { id: user.id, name: user.name, email: user.email, role: user.role };
+    SESSIONS.set(token, userPayload);
+    return res.status(200).json({ success: true, token, user: userPayload });
+  }
 
-// ======= api/inquiries/[id].js =======
-if (!fs.existsSync('api/inquiries')) fs.mkdirSync('api/inquiries');
-fs.writeFileSync('api/inquiries/[id].js', [
-  "const supabase = require('../_supabase');",
-  "function cors(res) {",
-  "  res.setHeader('Access-Control-Allow-Origin','*');",
-  "  res.setHeader('Access-Control-Allow-Methods','DELETE,OPTIONS');",
-  "  res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');",
-  "}",
-  "module.exports = async function(req, res) {",
-  "  cors(res);",
-  "  if (req.method === 'OPTIONS') return res.status(204).end();",
-  "  if (req.method === 'DELETE') {",
-  "    const { error } = await supabase.from('inquiries').delete().eq('id', req.query.id);",
-  "    if (error) return res.status(400).json({ error: error.message });",
-  "    return res.status(200).json({ success: true });",
-  "  }",
-  "  return res.status(405).json({ error: 'Method not allowed' });",
-  "};"
-].join('\n'));
+  if (action === 'me' && req.method === 'GET') {
+    const s = require('../_shared/data').getSessionUser(req);
+    if (!s || !s.user) return res.status(401).json({ error: 'Not authenticated' });
+    return res.status(200).json({ user: s.user });
+  }
 
-// ======= api/recommendations.js =======
-fs.writeFileSync('api/recommendations.js', [
-  "const supabase = require('./_supabase');",
-  "function cors(res) {",
-  "  res.setHeader('Access-Control-Allow-Origin','*');",
-  "  res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');",
-  "  res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');",
-  "}",
-  "function norm(v) { return String(v||'').trim().toLowerCase().replace(/[^a-z0-9]/g,''); }",
-  "function normCity(v) {",
-  "  const a = { bangalore:'bengaluru',bengaluru:'bengaluru',bombay:'mumbai',mumbai:'mumbai',",
-  "    hyderabad:'hyderabad',pune:'pune',chennai:'chennai',madras:'chennai',",
-  "    delhi:'delhi',delhincr:'delhi',ncr:'delhi',gurugram:'delhi',gurgaon:'delhi' };",
-  "  return a[norm(v)] || norm(v);",
-  "}",
-  "module.exports = async function(req, res) {",
-  "  cors(res);",
-  "  if (req.method === 'OPTIONS') return res.status(204).end();",
-  "  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });",
-  "  const p = req.body || {};",
-  "  const city = normCity(p.city || 'bengaluru');",
-  "  const budget = Number(p.budget) || 0;",
-  "  const propertyType = norm(p.propertyType);",
-  "  const maxCommute = Number(p.maxCommute) > 0 ? Number(p.maxCommute) : 9999;",
-  "  const minSafety = Number.isFinite(Number(p.minSafety)) ? Math.min(5,Math.max(1,Number(p.minSafety)))*20 : 0;",
-  "  const reqAmenities = Array.isArray(p.amenities) ? p.amenities.map(norm).filter(Boolean) : [];",
-  "  const { data, error } = await supabase.from('listings').select('*').eq('city', city);",
-  "  if (error) return res.status(500).json({ error: error.message });",
-  "  const listings = (data || []).map(row => ({ id: row.id, name: row.name, area: row.area, city: row.city,",
-  "    type: row.type, price: row.price, score: row.score, distance: row.distance,",
-  "    commute: row.commute, ownerEmail: row.owner_email, tags: row.tags || [],",
-  "    amenities: row.amenities || [], scores: row.scores || {}, reviews: row.reviews || [],",
-  "    icon: row.icon, color: row.color, lat: row.lat, lng: row.lng }));",
-  "  const filtered = listings.filter(l => {",
-  "    const avail = (l.amenities || []).map(norm);",
-  "    const commuteMin = parseInt(l.commute,10) || 999;",
-  "    const safety = (l.scores && l.scores.safety) || 0;",
-  "    return (!propertyType || norm(l.type) === propertyType)",
-  "      && safety >= minSafety && commuteMin <= maxCommute",
-  "      && reqAmenities.every(a => avail.includes(a));",
-  "  }).map(l => {",
-  "    const commuteMin = parseInt(l.commute,10) || 90;",
-  "    const avail = (l.amenities || []).map(norm);",
-  "    const matched = reqAmenities.filter(a => avail.includes(a)).length;",
-  "    const amenityScore = reqAmenities.length ? (matched/reqAmenities.length)*8 : 0;",
-  "    const budgetScore = budget ? Math.max(-10,8-Math.abs(l.price-budget)/budget*12) : 0;",
-  "    const commuteScore = Math.max(-8, 6-Math.max(0,commuteMin-maxCommute)*0.5);",
-  "    const propScore = propertyType && norm(l.type)===propertyType ? 8 : 0;",
-  "    const matchScore = Math.round(Math.max(0,Math.min(100,l.score*0.7+amenityScore+budgetScore+commuteScore+propScore)));",
-  "    return { ...l, score: matchScore, matchedAmenities: matched };",
-  "  }).sort((a,b) => b.score-a.score || a.price-b.price);",
-  "  return res.status(200).json({ listings: filtered, count: filtered.length });",
-  "};"
-].join('\n'));
+  if (action === 'logout') {
+    const s = require('../_shared/data').getSessionUser(req);
+    if (s && s.token) SESSIONS.delete(s.token);
+    return res.status(200).json({ success: true });
+  }
 
-// ======= api/runtime-config.js =======
-fs.writeFileSync('api/runtime-config.js', [
-  "function cors(res) {",
-  "  res.setHeader('Access-Control-Allow-Origin','*');",
-  "}",
-  "module.exports = function(req, res) {",
-  "  cors(res);",
-  "  res.setHeader('Content-Type','application/javascript');",
-  "  res.setHeader('Cache-Control','no-store');",
-  "  const config = {",
-  "    hereApiKey: process.env.HERE_API_KEY || '',",
-  "    supabaseUrl: process.env.SUPABASE_URL || '',",
-  "    supabaseKey: process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || ''",
-  "  };",
-  "  res.end('window.RENTRIGHT_CONFIG = ' + JSON.stringify(config) + ';');",
-  "};"
-].join('\n'));
+  return res.status(404).json({ error: 'Not found' });
+};
+`);
+console.log('2/7 api/auth/[action].js');
 
-console.log('All API files written successfully!');
+// ===== api/listings.js =====
+fs.writeFileSync('api/listings.js', `const { LISTINGS, SESSIONS, setCorsHeaders, getSessionUser, normaliseCity } = require('./_shared/data');
+
+module.exports = async function(req, res) {
+  setCorsHeaders(res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+
+  if (req.method === 'GET') {
+    return res.status(200).json({ listings: LISTINGS });
+  }
+
+  if (req.method === 'POST') {
+    const s = getSessionUser(req);
+    const b = req.body || {};
+    if (!b.name || !b.city || !b.area || !b.price) return res.status(400).json({ error: 'Name, city, area and price are required.' });
+    const city = normaliseCity(b.city);
+    if (!LISTINGS[city]) LISTINGS[city] = [];
+    b.id = Date.now();
+    b.ownerEmail = (s && s.user) ? s.user.email : (b.ownerEmail || 'admin@rentright.com');
+    LISTINGS[city].push(b);
+    return res.status(201).json({ success: true, listing: b });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+};
+`);
+console.log('3/7 api/listings.js');
+
+// ===== api/listings/[id].js =====
+if (!fs.existsSync('api/listings')) fs.mkdirSync('api/listings', { recursive: true });
+fs.writeFileSync('api/listings/[id].js', `const { LISTINGS, setCorsHeaders } = require('../_shared/data');
+
+module.exports = async function(req, res) {
+  setCorsHeaders(res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method === 'DELETE') {
+    const idToDelete = Number(req.query.id);
+    for (const city of Object.keys(LISTINGS)) {
+      const idx = LISTINGS[city].findIndex(item => item.id === idToDelete);
+      if (idx !== -1) { LISTINGS[city].splice(idx, 1); return res.status(200).json({ success: true }); }
+    }
+    return res.status(400).json({ error: 'Listing not found.' });
+  }
+  return res.status(405).json({ error: 'Method not allowed' });
+};
+`);
+console.log('4/7 api/listings/[id].js');
+
+// ===== api/inquiries.js =====
+fs.writeFileSync('api/inquiries.js', `const { INQUIRIES, setCorsHeaders, getSessionUser } = require('./_shared/data');
+
+module.exports = async function(req, res) {
+  setCorsHeaders(res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+
+  if (req.method === 'GET') {
+    const s = getSessionUser(req);
+    const ownerEmail = (s && s.user) ? s.user.email : (req.query.ownerEmail || 'admin@rentright.com');
+    const myInquiries = INQUIRIES.filter(i => (!i.ownerEmail) || i.ownerEmail === ownerEmail);
+    return res.status(200).json({ inquiries: myInquiries });
+  }
+
+  if (req.method === 'POST') {
+    const b = req.body || {};
+    if (!b.listingName || !b.userName || !b.phone) return res.status(400).json({ error: 'Name, phone, and property name are required.' });
+    const inquiry = {
+      id: 'inq_' + Date.now(),
+      listingId: b.listingId,
+      listingName: b.listingName,
+      ownerEmail: b.ownerEmail || 'admin@rentright.com',
+      userName: b.userName,
+      userEmail: b.userEmail || '',
+      phone: b.phone,
+      moveInDate: b.moveInDate || '',
+      message: b.message || '',
+      createdAt: new Date().toISOString()
+    };
+    INQUIRIES.push(inquiry);
+    return res.status(201).json({ success: true, inquiry });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+};
+`);
+console.log('5/7 api/inquiries.js');
+
+// ===== api/inquiries/[id].js =====
+if (!fs.existsSync('api/inquiries')) fs.mkdirSync('api/inquiries', { recursive: true });
+fs.writeFileSync('api/inquiries/[id].js', `const { INQUIRIES, setCorsHeaders } = require('../_shared/data');
+
+module.exports = async function(req, res) {
+  setCorsHeaders(res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method === 'DELETE') {
+    const idx = INQUIRIES.findIndex(i => i.id === req.query.id);
+    if (idx !== -1) INQUIRIES.splice(idx, 1);
+    return res.status(200).json({ success: true });
+  }
+  return res.status(405).json({ error: 'Method not allowed' });
+};
+`);
+console.log('6/7 api/inquiries/[id].js');
+
+// ===== api/recommendations.js =====
+fs.writeFileSync('api/recommendations.js', `const { getRecommendedListings, setCorsHeaders } = require('./_shared/data');
+
+module.exports = async function(req, res) {
+  setCorsHeaders(res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const preferences = req.body || {};
+    const listings = getRecommendedListings(preferences);
+    return res.status(200).json({ listings, count: listings.length });
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+};
+`);
+console.log('7/7 api/recommendations.js');
+
+// ===== api/runtime-config.js =====
+fs.writeFileSync('api/runtime-config.js', `module.exports = function(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  const config = {
+    hereApiKey: process.env.HERE_API_KEY || '',
+    supabaseUrl: process.env.SUPABASE_URL || '',
+    supabaseKey: process.env.SUPABASE_KEY || ''
+  };
+  res.end('window.RENTRIGHT_CONFIG = ' + JSON.stringify(config) + ';');
+};
+`);
+
+// ===== Clean up old Supabase-dependent files =====
+try { fs.unlinkSync('api/_supabase.js'); } catch(e) {}
+try { fs.unlinkSync('api/supabase.js'); } catch(e) {}
+try { fs.unlinkSync('api/auth/register.js'); } catch(e) {}
+try { fs.unlinkSync('api/cities.js'); } catch(e) {}
+try { fs.unlinkSync('api/health.js'); } catch(e) {}
+
+console.log('All files written! Ready to deploy.');
