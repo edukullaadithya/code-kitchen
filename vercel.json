@@ -1,51 +1,13 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "*.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "*.css",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "app.js",
-      "use": "@vercel/static"
-    }
+  "rewrites": [
+    { "source": "/api/auth/:action", "destination": "/api/auth/[action]" },
+    { "source": "/api/listings/:id", "destination": "/api/listings/[id]" },
+    { "source": "/api/inquiries/:id", "destination": "/api/inquiries/[id]" },
+    { "source": "/runtime-config.js", "destination": "/api/runtime-config" },
+    { "source": "/login", "destination": "/login.html" }
   ],
-  "routes": [
-    {
-      "src": "/api/auth/(.+)",
-      "dest": "/api/auth/[action]?action=$1"
-    },
-    {
-      "src": "/api/listings/(.+)",
-      "dest": "/api/listings/[id]?id=$1"
-    },
-    {
-      "src": "/api/inquiries/(.+)",
-      "dest": "/api/inquiries/[id]?id=$1"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/runtime-config.js",
-      "dest": "/api/runtime-config"
-    },
-    {
-      "src": "/login",
-      "dest": "/login.html"
-    },
-    {
-      "src": "/",
-      "dest": "/login.html"
-    }
+  "redirects": [
+    { "source": "/", "destination": "/login.html" }
   ]
 }
