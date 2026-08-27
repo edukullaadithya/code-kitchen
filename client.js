@@ -1079,14 +1079,18 @@ function updateNavbarAuthUI() {
     if (loggedOutBox) loggedOutBox.style.display = 'none';
     if (loggedInBox) loggedInBox.style.display = 'inline-flex';
     
+    var personName = authState.user.name && authState.user.name.trim().length > 0 
+      ? authState.user.name.trim() 
+      : (authState.user.email ? authState.user.email.split('@')[0] : 'Admin');
+
     if (authState.user.role === 'admin') {
-      if (displayName) displayName.textContent = (authState.user.email || authState.user.name) + ' (Flat Seller)';
+      if (displayName) displayName.textContent = personName + ' (Flat Seller)';
       // Admin only sees Seller Console
       clientLinks.forEach(function(l) { l.style.display = 'none'; });
       if (adminLink) adminLink.style.display = 'inline-block';
       setViewMode('admin');
     } else {
-      if (displayName) displayName.textContent = (authState.user.email || authState.user.name) + ' (Customer)';
+      if (displayName) displayName.textContent = personName + ' (Customer)';
       // Customer only sees Renter Finder
       clientLinks.forEach(function(l) { l.style.display = 'inline-block'; });
       if (adminLink) adminLink.style.display = 'none';
