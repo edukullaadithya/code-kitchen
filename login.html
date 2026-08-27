@@ -3,95 +3,1008 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sign In & Register – RentRight</title>
+  <title>RentRight – Sign In &amp; Account Portal</title>
   <meta name="description" content="Sign in or create an account for RentRight to access AI rental recommendations or the administrator management portal." />
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" />
   <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Custom Scoped Styles for the New Dark Futuristic Login Page */
+    :root {
+      --rr-dark-bg: #050711;
+      --rr-card-bg: rgba(12, 16, 32, 0.88);
+      --rr-card-border: rgba(255, 255, 255, 0.08);
+      --rr-input-bg: rgba(8, 12, 24, 0.75);
+      --rr-input-border: rgba(255, 255, 255, 0.12);
+      --rr-purple-primary: #7c3aed;
+      --rr-indigo-accent: #6366f1;
+      --rr-blue-accent: #3b82f6;
+      --rr-cyan-accent: #38bdf8;
+      --rr-text-main: #f8fafc;
+      --rr-text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body.login-page-body {
+      background-color: var(--rr-dark-bg);
+      color: var(--rr-text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1.5rem;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Fixed Full-Bleed Atmospheric Background Layer */
+    .bg-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background: radial-gradient(circle at 15% 15%, #0f1530 0%, #060814 60%, #03040a 100%);
+      overflow: hidden;
+    }
+
+    .bg-city-overlay {
+      position: absolute;
+      inset: 0;
+      background-image: url('https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1920&q=80');
+      background-size: cover;
+      background-position: center;
+      opacity: 0.12;
+      filter: saturate(1.5) contrast(1.2);
+    }
+
+    .bg-grid-mesh {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(147, 197, 253, 0.08) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: 0.7;
+    }
+
+    .ambient-glow-1 {
+      position: absolute;
+      top: -120px;
+      left: -100px;
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, rgba(124, 58, 237, 0.3) 0%, rgba(99, 102, 241, 0.12) 50%, transparent 70%);
+      filter: blur(90px);
+    }
+
+    .ambient-glow-2 {
+      position: absolute;
+      bottom: -150px;
+      right: -80px;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.22) 0%, rgba(124, 58, 237, 0.15) 50%, transparent 70%);
+      filter: blur(100px);
+    }
+
+    .ambient-glow-3 {
+      position: absolute;
+      top: 40%;
+      left: 35%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 65%);
+      filter: blur(80px);
+    }
+
+    .login-wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 1240px;
+      display: grid;
+      grid-template-columns: 1.15fr 0.95fr;
+      gap: 3.5rem;
+      align-items: center;
+    }
+
+    /* LEFT HERO SECTION */
+    .hero-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      padding-right: 1rem;
+    }
+
+    .brand-header {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .brand-logo-pin {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
+      flex-shrink: 0;
+    }
+
+    .brand-logo-pin svg {
+      width: 24px;
+      height: 24px;
+      fill: #ffffff;
+    }
+
+    .brand-title-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-name span {
+      background: linear-gradient(135deg, #818cf8, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-tagline {
+      font-size: 0.82rem;
+      color: var(--rr-text-muted);
+      margin-top: 0.15rem;
+    }
+
+    .brand-tagline .hl-right {
+      color: #a855f7;
+      font-weight: 600;
+    }
+
+    .brand-tagline .hl-live {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    .hero-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .hero-heading {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(2.4rem, 4vw, 3.4rem);
+      font-weight: 800;
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      color: #ffffff;
+    }
+
+    .hero-heading .glow-gradient {
+      background: linear-gradient(135deg, #c084fc 0%, #818cf8 50%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: inline-block;
+    }
+
+    .hero-subtext {
+      color: #94a3b8;
+      font-size: 1.05rem;
+      line-height: 1.55;
+      max-width: 520px;
+    }
+
+    /* Hero Villa Showcase Image Card */
+    .showcase-media-card {
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(124, 58, 237, 0.15);
+      aspect-ratio: 16 / 9;
+      background: #0d1124;
+    }
+
+    .showcase-media-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      filter: contrast(1.05) brightness(0.95);
+      transition: transform 0.6s ease;
+    }
+
+    .showcase-media-card:hover img {
+      transform: scale(1.03);
+    }
+
+    .showcase-media-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(7, 9, 19, 0.05) 0%, rgba(7, 9, 19, 0.35) 60%, rgba(7, 9, 19, 0.85) 100%);
+      pointer-events: none;
+    }
+
+    /* Feature Value Props Grid */
+    .features-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .feature-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .feature-icon-badge {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: rgba(124, 58, 237, 0.12);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #c084fc;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+    }
+
+    .feature-icon-badge svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .feature-item h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-item p {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      line-height: 1.45;
+    }
+
+    /* RIGHT AUTH CARD */
+    .auth-card-container {
+      position: relative;
+    }
+
+    .auth-glass-card {
+      background: var(--rr-card-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--rr-card-border);
+      border-radius: 26px;
+      padding: 2.5rem 2.25rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 40px rgba(124, 58, 237, 0.12);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .auth-glass-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.6), rgba(99, 102, 241, 0.6), transparent);
+    }
+
+    /* Card Top Header */
+    .card-top-header {
+      text-align: center;
+      margin-bottom: 1.6rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .card-header-icon-glow {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(124, 58, 237, 0.25) 0%, rgba(15, 23, 42, 0.9) 70%);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.85rem;
+      box-shadow: 0 0 25px rgba(124, 58, 237, 0.35);
+    }
+
+    .card-header-icon-glow svg {
+      width: 22px;
+      height: 22px;
+      fill: #818cf8;
+    }
+
+    .card-heading {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .card-heading .accent-word {
+      background: linear-gradient(135deg, #a855f7, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .card-subtext {
+      font-size: 0.88rem;
+      color: #94a3b8;
+      margin-top: 0.35rem;
+    }
+
+    .card-subtext span {
+      color: #818cf8;
+      font-weight: 600;
+    }
+
+    .diamond-divider {
+      margin-top: 0.85rem;
+      color: rgba(168, 85, 247, 0.5);
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    /* Role Pill Switcher */
+    .role-section {
+      margin-bottom: 1.25rem;
+    }
+
+    .input-section-label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+
+    .role-pill-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: rgba(10, 14, 28, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 50px;
+      padding: 0.3rem;
+      gap: 0.3rem;
+    }
+
+    .role-pill-btn {
+      padding: 0.65rem 0.75rem;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #94a3b8;
+      background: transparent;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .role-pill-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .role-pill-btn.active {
+      background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 18px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Signing In As Dynamic Preview Card */
+    .signing-as-preview {
+      background: rgba(15, 20, 38, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .signing-as-preview:hover {
+      border-color: rgba(168, 85, 247, 0.3);
+    }
+
+    .role-avatar-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(99, 102, 241, 0.2));
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #c084fc;
+      flex-shrink: 0;
+    }
+
+    .role-avatar-badge svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .role-desc-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .role-desc-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .role-desc-sub {
+      font-size: 0.76rem;
+      color: #94a3b8;
+      margin-top: 0.1rem;
+    }
+
+    /* Form Fields */
+    .form-group-field {
+      margin-bottom: 1.15rem;
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.45rem;
+    }
+
+    .label-row .input-section-label {
+      margin-bottom: 0;
+    }
+
+    .forgot-link {
+      font-size: 0.78rem;
+      color: #a855f7;
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .forgot-link:hover {
+      color: #c084fc;
+      text-decoration: underline;
+    }
+
+    .input-icon-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-prefix-icon {
+      position: absolute;
+      left: 1rem;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .input-prefix-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .custom-auth-input {
+      width: 100%;
+      background: var(--rr-input-bg);
+      border: 1px solid var(--rr-input-border);
+      border-radius: 12px;
+      padding: 0.85rem 1rem 0.85rem 2.85rem;
+      font-size: 0.92rem;
+      color: #ffffff;
+      outline: none;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .custom-auth-input::placeholder {
+      color: #475569;
+    }
+
+    .custom-auth-input:focus {
+      border-color: #818cf8;
+      background: rgba(14, 20, 42, 0.9);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    .password-toggle-btn {
+      position: absolute;
+      right: 1rem;
+      background: none;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.25rem;
+      transition: color 0.2s ease;
+    }
+
+    .password-toggle-btn:hover {
+      color: #94a3b8;
+    }
+
+    .password-toggle-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    /* Remember Me Checkbox */
+    .remember-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1.4rem;
+      gap: 0.55rem;
+    }
+
+    .custom-checkbox-wrap {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      user-select: none;
+      gap: 0.55rem;
+    }
+
+    .custom-checkbox-wrap input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+      cursor: pointer;
+      display: grid;
+      place-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .custom-checkbox-wrap input[type="checkbox"]:checked {
+      background: #7c3aed;
+      border-color: #7c3aed;
+    }
+
+    .custom-checkbox-wrap input[type="checkbox"]::before {
+      content: "";
+      width: 9px;
+      height: 6px;
+      border-left: 2px solid #ffffff;
+      border-bottom: 2px solid #ffffff;
+      transform: rotate(-45deg) translate(1px, -1px) scale(0);
+      transition: transform 0.15s ease-in-out;
+    }
+
+    .custom-checkbox-wrap input[type="checkbox"]:checked::before {
+      transform: rotate(-45deg) translate(1px, -1px) scale(1);
+    }
+
+    /* Primary Submit Button */
+    .auth-submit-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      padding: 0.95rem 1.5rem;
+      font-size: 0.98rem;
+      font-weight: 700;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .auth-submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(99, 102, 241, 0.5);
+      background: linear-gradient(135deg, #5558e6 0%, #2563eb 100%);
+    }
+
+    .auth-submit-btn:active {
+      transform: translateY(0);
+    }
+
+    .auth-submit-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: transform 0.2s ease;
+    }
+
+    .auth-submit-btn:hover svg {
+      transform: translateX(3px);
+    }
+
+    /* Card Footer Switcher */
+    .auth-footer-prompt {
+      margin-top: 1.5rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    .auth-footer-prompt a {
+      color: #818cf8;
+      font-weight: 700;
+      text-decoration: none;
+      margin-left: 0.35rem;
+      transition: color 0.2s ease;
+    }
+
+    .auth-footer-prompt a:hover {
+      color: #c084fc;
+      text-decoration: underline;
+    }
+
+    /* Alert Box */
+    .custom-alert-box {
+      padding: 0.8rem 1rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      margin-bottom: 1.25rem;
+      text-align: center;
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 1024px) {
+      .login-wrapper {
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+        max-width: 600px;
+      }
+      .hero-panel {
+        padding-right: 0;
+        text-align: center;
+        align-items: center;
+      }
+      .brand-header {
+        justify-content: center;
+      }
+      .hero-subtext {
+        margin: 0 auto;
+      }
+      .features-row {
+        text-align: left;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body.login-page-body {
+        padding: 1.25rem 1rem;
+      }
+      .auth-glass-card {
+        padding: 2rem 1.25rem;
+        border-radius: 20px;
+      }
+      .features-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      .hero-heading {
+        font-size: 2rem;
+      }
+    }
+  </style>
 </head>
-<body style="background: var(--bg-base); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem;">
+<body class="login-page-body">
 
-  <div class="hero-bg-gradient"></div>
+  <!-- Fixed Multi-Layer Atmospheric Backdrop -->
+  <div class="bg-canvas">
+    <div class="bg-city-overlay"></div>
+    <div class="bg-grid-mesh"></div>
+    <div class="ambient-glow-1"></div>
+    <div class="ambient-glow-2"></div>
+    <div class="ambient-glow-3"></div>
+  </div>
 
-  <!-- STANDALONE LOGIN CONTAINER -->
-  <div class="login-container glass-card" style="max-width: 500px; padding: 3rem 2.5rem;">
-    
-    <!-- Brand Header -->
-    <div class="login-brand">
-      <svg class="logo-svg" viewBox="0 0 100 100" width="54" height="54" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="pinGradLoginPage" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#0052d4" />
-            <stop offset="50%" stop-color="#4364f7" />
-            <stop offset="100%" stop-color="#6fb1fc" />
-          </linearGradient>
-        </defs>
-        <path d="M50 90C72 68 85 49 85 32C85 13 69 0 50 0C31 0 15 13 15 32C15 49 28 68 50 90Z" fill="url(#pinGradLoginPage)"/>
-        <circle cx="50" cy="32" r="22" fill="#ffffff" />
-        <path d="M50 18L32 32V47H42V37H58V47H68V32L50 18Z" fill="#0052d4" />
-        <rect x="47" y="27" width="6" height="6" fill="#ffffff" />
-      </svg>
-      <h1 class="logo-text" style="font-size: 2.2rem; margin-top: 0.5rem;">Rent<span class="logo-accent">Right</span></h1>
-      <p class="login-tagline">Don't just find a house — <span class="gradient-text">find the right place to live.</span></p>
-      <h2 id="auth-heading" style="margin: 1.5rem 0 0.35rem; font-size: 1.35rem;">Sign In</h2>
-      <p id="auth-instruction" style="margin: 0; color: var(--text-muted); font-size:0.9rem;">Select your account type below to sign in or create an account.</p>
-    </div>
+  <div class="login-wrapper">
 
-    <!-- Explicit Role Selector Prompt -->
-    <div style="margin-bottom: 1.25rem;">
-      <label class="form-label" id="role-prompt-label" style="font-weight: 600; font-size: 0.85rem; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.04em;">
-        Select Account Type:
-      </label>
-      <div class="role-selector-bar" style="margin-top: 0.4rem;">
-        <button type="button" class="role-tab active" id="role-btn-user" onclick="selectRole('user')">
-          <span>👤</span> Customer / Renter
-        </button>
-        <button type="button" class="role-tab" id="role-btn-admin" onclick="selectRole('admin')">
-          <span>💼</span> Administrator
-        </button>
-      </div>
-    </div>
-
-    <!-- Alert Box -->
-    <div id="login-alert" class="auth-alert-box" style="display:none;"></div>
-
-    <!-- Auth Form -->
-    <form id="standalone-login-form" onsubmit="handleLoginSubmit(event)">
+    <!-- LEFT COLUMN: HERO SHOWCASE -->
+    <div class="hero-panel">
       
-      <!-- Account Type Selection Dropdown / Indicator -->
-      <div class="form-group" style="margin-bottom: 1rem;">
-        <label class="form-label">Creating/Signing in as:</label>
-        <select id="role-dropdown" class="form-input" onchange="selectRole(this.value)" style="font-weight:600; background:rgba(99,102,241,0.06); border-color:var(--border-accent);">
-          <option value="user">👤 Customer / Renter Account</option>
-          <option value="admin">💼 Administrator Account</option>
-        </select>
+      <!-- Brand Header -->
+      <div class="brand-header">
+        <div class="brand-logo-pin">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 10.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/>
+            <path d="M12 6.5l-2.5 2h1v2h3v-2h1z"/>
+          </svg>
+        </div>
+        <div class="brand-title-wrap">
+          <h1 class="brand-name">Rent<span>Right</span></h1>
+          <p class="brand-tagline">Find the <span class="hl-right">right</span> place to <span class="hl-live">live.</span></p>
+        </div>
       </div>
 
-      <div class="form-group" id="name-group" style="display:none; margin-bottom: 1rem;">
-        <label class="form-label">Full Name</label>
-        <input type="text" id="login-name" class="form-input" placeholder="e.g. Alex Sharma" autocomplete="name" />
+      <!-- Hero Headline & Description -->
+      <div class="hero-content">
+        <h2 class="hero-heading">
+          The right home<br />
+          changes <span class="glow-gradient">everything.</span>
+        </h2>
+        <p class="hero-subtext">
+          Whether you're renting your dream home or managing properties — we've got you covered.
+        </p>
       </div>
 
-      <div class="form-group" style="margin-bottom: 1rem;">
-        <label class="form-label">Email Address</label>
-        <input type="email" id="login-email" class="form-input" placeholder="name@domain.com" autocomplete="email" required />
+      <!-- Modern Villa Showcase Image Card -->
+      <div class="showcase-media-card">
+        <img 
+          src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80" 
+          alt="Luxury illuminated modern villa at night with pool reflection and city lights" 
+          loading="lazy"
+        />
+        <div class="showcase-media-overlay"></div>
       </div>
 
-      <div class="form-group" style="margin-bottom: 1.5rem;">
-        <label class="form-label">Password</label>
-        <input type="password" id="login-password" class="form-input" placeholder="Your password" autocomplete="current-password" required />
+      <!-- 3 Feature Badges -->
+      <div class="features-row">
+        
+        <!-- Feature 1: Secure & Private -->
+        <div class="feature-item">
+          <div class="feature-icon-badge">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polyline points="9 12 11 14 15 10"/>
+            </svg>
+          </div>
+          <h4>Secure &amp; Private</h4>
+          <p>Your data is protected with enterprise-grade security.</p>
+        </div>
+
+        <!-- Feature 2: Fast & Easy -->
+        <div class="feature-item">
+          <div class="feature-icon-badge">
+            <svg viewBox="0 0 24 24">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+          <h4>Fast &amp; Easy</h4>
+          <p>Sign in and get started in just a few clicks.</p>
+        </div>
+
+        <!-- Feature 3: For Everyone -->
+        <div class="feature-item">
+          <div class="feature-icon-badge">
+            <svg viewBox="0 0 24 24">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <h4>For Everyone</h4>
+          <p>Built for renters, customers, and administrators.</p>
+        </div>
+
       </div>
 
-      <button type="submit" id="submit-btn" class="btn-primary btn-lg btn-full">
-        Sign In &amp; Continue
-      </button>
-    </form>
+    </div>
 
-    <!-- Toggle Mode -->
-    <div class="auth-toggle-footer" style="margin-top: 1.5rem; text-align: center;">
-      <span id="toggle-text">Need to create an account?</span>
-      <a href="#" id="toggle-link" style="color:var(--accent-primary); font-weight:700;" onclick="toggleAuthMode(event)">Create Account for User or Admin</a>
+
+    <!-- RIGHT COLUMN: SLEEK GLASS AUTH CARD -->
+    <div class="auth-card-container">
+      <div class="auth-glass-card">
+        
+        <!-- Header with Glowing Badge -->
+        <div class="card-top-header">
+          <div class="card-header-icon-glow">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
+            </svg>
+          </div>
+          <h3 class="card-heading" id="auth-main-title">Welcome <span class="accent-word" id="auth-accent-word">Back!</span></h3>
+          <p class="card-subtext" id="auth-subtext-line">Sign in to continue to <span>RentRight</span></p>
+          <div class="diamond-divider">◇</div>
+        </div>
+
+        <!-- Role Pill Selector -->
+        <div class="role-section">
+          <label class="input-section-label" id="role-selector-label">SELECT ACCOUNT TYPE</label>
+          <div class="role-pill-group">
+            <button type="button" class="role-pill-btn active" id="role-btn-user" onclick="selectRole('user')">
+              <span>👤</span> Customer / Renter
+            </button>
+            <button type="button" class="role-pill-btn" id="role-btn-admin" onclick="selectRole('admin')">
+              <span>💼</span> Administrator
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Role Preview Box -->
+        <div class="signing-as-preview">
+          <div class="role-avatar-badge" id="role-avatar-badge">
+            <svg viewBox="0 0 24 24" id="role-avatar-svg">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+          </div>
+          <div class="role-desc-text">
+            <span class="role-desc-title" id="role-desc-title">Customer / Renter Account</span>
+            <span class="role-desc-sub" id="role-desc-sub">Access listings, save favorites, and manage your profile.</span>
+          </div>
+        </div>
+
+        <!-- Alert Notification Box -->
+        <div id="login-alert" class="custom-alert-box"></div>
+
+        <!-- Interactive Form -->
+        <form id="standalone-login-form" onsubmit="handleLoginSubmit(event)">
+          
+          <!-- Full Name Field (Displayed in Register Mode) -->
+          <div class="form-group-field" id="name-group" style="display: none;">
+            <label class="input-section-label">FULL NAME</label>
+            <div class="input-icon-wrapper">
+              <div class="input-prefix-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <input 
+                type="text" 
+                id="login-name" 
+                class="custom-auth-input" 
+                placeholder="e.g. Alex Sharma" 
+                autocomplete="name" 
+              />
+            </div>
+          </div>
+
+          <!-- Email Address Field -->
+          <div class="form-group-field">
+            <label class="input-section-label">EMAIL ADDRESS</label>
+            <div class="input-icon-wrapper">
+              <div class="input-prefix-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+              </div>
+              <input 
+                type="email" 
+                id="login-email" 
+                class="custom-auth-input" 
+                placeholder="name@domain.com" 
+                autocomplete="email" 
+                required 
+              />
+            </div>
+          </div>
+
+          <!-- Password Field -->
+          <div class="form-group-field">
+            <div class="label-row">
+              <label class="input-section-label">PASSWORD</label>
+              <a href="#" class="forgot-link" onclick="handleForgotPassword(event)">Forgot Password?</a>
+            </div>
+            <div class="input-icon-wrapper">
+              <div class="input-prefix-icon">
+                <svg viewBox="0 0 24 24">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <input 
+                type="password" 
+                id="login-password" 
+                class="custom-auth-input" 
+                placeholder="Enter your password" 
+                autocomplete="current-password" 
+                required 
+              />
+              <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility()" title="Toggle password visibility">
+                <svg id="eye-icon" viewBox="0 0 24 24">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Remember Me Checkbox -->
+          <div class="remember-row" id="remember-group">
+            <label class="custom-checkbox-wrap">
+              <input type="checkbox" id="remember-me-checkbox" checked />
+              <span>Remember me</span>
+            </label>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="submit-btn" class="auth-submit-btn">
+            <span id="submit-btn-text">Sign In &amp; Continue</span>
+            <svg viewBox="0 0 24 24">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </button>
+        </form>
+
+        <!-- Toggle Mode Link -->
+        <div class="auth-footer-prompt">
+          <span id="toggle-prompt-text">Don't have an account?</span>
+          <a href="#" id="toggle-prompt-link" onclick="toggleAuthMode(event)">Create Account for User or Admin</a>
+        </div>
+
+      </div>
     </div>
 
   </div>
@@ -107,18 +1020,27 @@
       return path;
     }
 
-    // Check if token exists on load
+    // Auto-fill remembered email if present
+    document.addEventListener('DOMContentLoaded', function() {
+      var rememberedEmail = localStorage.getItem('rentright_remembered_email');
+      if (rememberedEmail) {
+        var emailInput = document.getElementById('login-email');
+        if (emailInput) emailInput.value = rememberedEmail;
+      }
+    });
+
+    // Check if valid token exists on load
     if (localStorage.getItem('rentright_token')) {
       fetch(getApiUrl('/api/auth/me'), {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rentright_token') }
       })
-      .then(res => res.json())
-      .then(data => {
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
         if (data.user) {
           window.location.href = 'index.html';
         }
       })
-      .catch(() => {
+      .catch(function() {
         if (localStorage.getItem('rentright_user')) {
           window.location.href = 'index.html';
         }
@@ -129,9 +1051,43 @@
       currentRole = role;
       document.getElementById('role-btn-user').classList.toggle('active', role === 'user');
       document.getElementById('role-btn-admin').classList.toggle('active', role === 'admin');
-      
-      var dropdown = document.getElementById('role-dropdown');
-      if (dropdown) dropdown.value = role;
+
+      var descTitle = document.getElementById('role-desc-title');
+      var descSub = document.getElementById('role-desc-sub');
+      var avatarSvg = document.getElementById('role-avatar-svg');
+
+      if (role === 'admin') {
+        descTitle.textContent = 'Administrator Account';
+        descSub.textContent = 'Manage properties, verify listings, and oversee inquiries.';
+        avatarSvg.innerHTML = '<path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/>';
+      } else {
+        descTitle.textContent = 'Customer / Renter Account';
+        descSub.textContent = 'Access listings, save favorites, and manage your profile.';
+        avatarSvg.innerHTML = '<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>';
+      }
+    }
+
+    function togglePasswordVisibility() {
+      var passInput = document.getElementById('login-password');
+      var eyeIcon = document.getElementById('eye-icon');
+      if (passInput.type === 'password') {
+        passInput.type = 'text';
+        eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+      } else {
+        passInput.type = 'password';
+        eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+      }
+    }
+
+    function handleForgotPassword(event) {
+      event.preventDefault();
+      var email = document.getElementById('login-email').value.trim();
+      if (!email) {
+        showAlert('Please enter your email address first, then click Forgot Password.', false);
+        document.getElementById('login-email').focus();
+        return;
+      }
+      showAlert('Password reset link has been sent to ' + email + ' (Simulation)', true);
     }
 
     function toggleAuthMode(event) {
@@ -140,37 +1096,41 @@
       hideAlert();
 
       var nameGrp = document.getElementById('name-group');
-      var submitBtn = document.getElementById('submit-btn');
-      var toggleText = document.getElementById('toggle-text');
-      var toggleLink = document.getElementById('toggle-link');
-      var authHeading = document.getElementById('auth-heading');
-      var authInstruction = document.getElementById('auth-instruction');
-      var rolePromptLabel = document.getElementById('role-prompt-label');
+      var nameInput = document.getElementById('login-name');
+      var passInput = document.getElementById('login-password');
+      var submitText = document.getElementById('submit-btn-text');
+      var togglePromptText = document.getElementById('toggle-prompt-text');
+      var togglePromptLink = document.getElementById('toggle-prompt-link');
+      var mainTitle = document.getElementById('auth-main-title');
+      var subtextLine = document.getElementById('auth-subtext-line');
+      var roleSelectorLabel = document.getElementById('role-selector-label');
 
       if (currentMode === 'register') {
         nameGrp.style.display = 'block';
-        document.getElementById('login-name').required = true;
-        document.getElementById('login-password').minLength = 6;
-        document.getElementById('login-password').placeholder = 'Choose a password (min 6 chars)';
-        document.getElementById('login-password').autocomplete = 'new-password';
-        authHeading.textContent = 'Create an Account';
-        authInstruction.textContent = 'Creating account for ' + (currentRole === 'admin' ? 'Administrator' : 'Customer / Renter') + '. Fill in details below.';
-        if (rolePromptLabel) rolePromptLabel.textContent = 'Account Type to Create:';
-        submitBtn.textContent = 'Create Account & Continue';
-        toggleText.textContent = 'Already have an account?';
-        toggleLink.textContent = 'Sign In';
+        nameInput.required = true;
+        passInput.minLength = 6;
+        passInput.placeholder = 'Choose a password (min 6 chars)';
+        passInput.autocomplete = 'new-password';
+        
+        mainTitle.innerHTML = 'Create <span class="accent-word">Account</span>';
+        subtextLine.innerHTML = 'Join <span style="color:#818cf8;">RentRight</span> to get started';
+        if (roleSelectorLabel) roleSelectorLabel.textContent = 'ACCOUNT TYPE TO CREATE';
+        submitText.textContent = 'Create Account & Continue';
+        togglePromptText.textContent = 'Already have an account?';
+        togglePromptLink.textContent = 'Sign In';
       } else {
         nameGrp.style.display = 'none';
-        document.getElementById('login-name').required = false;
-        document.getElementById('login-password').minLength = 0;
-        document.getElementById('login-password').placeholder = 'Your password';
-        document.getElementById('login-password').autocomplete = 'current-password';
-        authHeading.textContent = 'Welcome back';
-        authInstruction.textContent = 'Select your account type below to sign in.';
-        if (rolePromptLabel) rolePromptLabel.textContent = 'Select Account Type:';
-        submitBtn.textContent = 'Sign In & Continue';
-        toggleText.textContent = 'Need to create an account?';
-        toggleLink.textContent = 'Create Account for User or Admin';
+        nameInput.required = false;
+        passInput.minLength = 0;
+        passInput.placeholder = 'Enter your password';
+        passInput.autocomplete = 'current-password';
+        
+        mainTitle.innerHTML = 'Welcome <span class="accent-word">Back!</span>';
+        subtextLine.innerHTML = 'Sign in to continue to <span style="color:#818cf8;">RentRight</span>';
+        if (roleSelectorLabel) roleSelectorLabel.textContent = 'SELECT ACCOUNT TYPE';
+        submitText.textContent = 'Sign In & Continue';
+        togglePromptText.textContent = "Don't have an account?";
+        togglePromptLink.textContent = 'Create Account for User or Admin';
       }
     }
 
@@ -179,12 +1139,12 @@
       alertBox.textContent = msg;
       alertBox.style.display = 'block';
       if (isSuccess) {
-        alertBox.style.background = 'rgba(16,185,129,0.15)';
-        alertBox.style.borderColor = 'rgba(16,185,129,0.3)';
+        alertBox.style.background = 'rgba(16, 185, 129, 0.15)';
+        alertBox.style.border = '1px solid rgba(16, 185, 129, 0.35)';
         alertBox.style.color = '#6ee7b7';
       } else {
-        alertBox.style.background = 'rgba(239,68,68,0.15)';
-        alertBox.style.borderColor = 'rgba(239,68,68,0.3)';
+        alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
+        alertBox.style.border = '1px solid rgba(239, 68, 68, 0.35)';
         alertBox.style.color = '#fca5a5';
       }
     }
@@ -200,7 +1160,14 @@
       var email = document.getElementById('login-email').value.trim().toLowerCase();
       var password = document.getElementById('login-password').value;
       var name = document.getElementById('login-name').value;
+      var rememberMe = document.getElementById('remember-me-checkbox').checked;
       var endpoint = (currentMode === 'register') ? '/api/auth/register' : '/api/auth/login';
+
+      if (rememberMe) {
+        localStorage.setItem('rentright_remembered_email', email);
+      } else {
+        localStorage.removeItem('rentright_remembered_email');
+      }
 
       var payload = { 
         email: email, 
@@ -210,6 +1177,12 @@
       if (currentMode === 'register') {
         payload.name = name || (email.split('@')[0]);
       }
+
+      var submitBtn = document.getElementById('submit-btn');
+      var submitText = document.getElementById('submit-btn-text');
+      var originalText = submitText.textContent;
+      submitBtn.disabled = true;
+      submitText.textContent = 'Processing...';
 
       try {
         var response = await fetch(getApiUrl(endpoint), {
@@ -226,12 +1199,14 @@
           showAlert('Account verified (' + roleName + ')! Redirecting...', true);
           setTimeout(function() {
             window.location.href = 'index.html';
-          }, 400);
+          }, 500);
         } else {
-          showAlert(data.error || 'Authentication failed.');
+          showAlert(data.error || 'Authentication failed. Please check your credentials.', false);
+          submitBtn.disabled = false;
+          submitText.textContent = originalText;
         }
       } catch (err) {
-        // Fallback for file:// protocol viewing or offline backend
+        // Fallback for file:// protocol viewing or offline dev
         if (email && password) {
           var userObj = {
             id: 'usr_' + Date.now(),
@@ -241,11 +1216,13 @@
           };
           localStorage.setItem('rentright_token', 'token_' + Date.now());
           localStorage.setItem('rentright_user', JSON.stringify(userObj));
-          showAlert('Success! Account created (' + (currentRole === 'admin' ? 'Administrator' : 'Customer') + ')', true);
-          setTimeout(function() { window.location.href = 'index.html'; }, 400);
+          showAlert('Success! Signed in as (' + (currentRole === 'admin' ? 'Administrator' : 'Customer') + ')', true);
+          setTimeout(function() { window.location.href = 'index.html'; }, 500);
           return;
         }
-        showAlert('Unable to reach server. Please enter email & password.');
+        showAlert('Unable to reach server. Please enter email & password.', false);
+        submitBtn.disabled = false;
+        submitText.textContent = originalText;
       }
     }
   </script>
