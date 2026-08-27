@@ -1414,15 +1414,14 @@ async function handleDeleteListing(id) {
   
   // 1. Remove from localStorage
   var custom = getCustomListingsFromStorage();
-  custom = custom.filter(function(x) { return x.id !== id; });
+  custom = custom.filter(function(x) { return String(x.id) !== String(id); });
   saveCustomListingsToStorage(custom);
 
   // 2. Remove from in-memory ALL_LISTINGS
   Object.keys(ALL_LISTINGS).forEach(function(city) {
-    ALL_LISTINGS[city] = ALL_LISTINGS[city].filter(function(x) { return x.id !== id; });
+    ALL_LISTINGS[city] = ALL_LISTINGS[city].filter(function(x) { return String(x.id) !== String(id); });
   });
 
-  alert("Listing deleted successfully!");
   loadAdminListings();
 
   // 3. Sync to API in background
