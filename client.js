@@ -1222,7 +1222,16 @@ function mergeCustomListingsIntoAll() {
 function getCustomInquiriesFromStorage() {
   try {
     var raw = localStorage.getItem('rentright_custom_inquiries');
-    return raw ? JSON.parse(raw) : [];
+    var list = raw ? JSON.parse(raw) : [];
+    // Automatically purge old test inquiries (for xyz hotel, test flat, etc.)
+    var cleaned = list.filter(function(item) {
+      var flat = String(item.listingName || '').toLowerCase().trim();
+      return flat !== 'xyz hotel' && flat !== 'test flat' && flat !== 'sample flat';
+    });
+    if (cleaned.length !== list.length) {
+      localStorage.setItem('rentright_custom_inquiries', JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch (e) {
     return [];
   }
@@ -1378,7 +1387,8 @@ function loadAdminListings() {
   // Strict ownership: ONLY properties whose ownerEmail strictly matches this logged-in admin
   var myItems = allItems.filter(function(item) {
     var itemEmail = String(item.ownerEmail || '').trim().toLowerCase();
-    return itemEmail.length > 0 && itemEmail === currentAdminEmail;
+    var flatName = String(item.name || '').toLowerCase().trim();
+    return itemEmail.length > 0 && itemEmail === currentAdminEmail && flatName !== 'xyz hotel';
   });
 
   if (totalCount) totalCount.textContent = myItems.length;
@@ -1483,7 +1493,7 @@ function showInquiryAlert(msg, isSuccess) {
 
 function hideInquiryAlert() {
   var alertEl = document.getElementById('inquiry-alert');
-  if (alertEl) alertEl.style.display = 'none';
+  if (!alertEl) alertEl.style.display = 'none';
 }
 
 async function handleInquirySubmit(event) {
@@ -1551,7 +1561,8 @@ async function loadAdminInquiries() {
   // Merge ONLY local inquiries strictly belonging to this admin's email
   var localInqs = getCustomInquiriesFromStorage().filter(function(i) {
     var inqOwner = String(i.ownerEmail || '').trim().toLowerCase();
-    return inqOwner === currentAdminEmail;
+    var flat = String(i.listingName || '').toLowerCase().trim();
+    return inqOwner === currentAdminEmail && flat !== 'xyz hotel' && flat !== 'test flat';
   });
 
   localInqs.forEach(function(li) {
@@ -1563,7 +1574,8 @@ async function loadAdminInquiries() {
   // Strict filter on final inquiries list
   inquiries = inquiries.filter(function(inq) {
     var inqOwner = String(inq.ownerEmail || '').trim().toLowerCase();
-    return inqOwner === currentAdminEmail;
+    var flat = String(inq.listingName || '').toLowerCase().trim();
+    return inqOwner === currentAdminEmail && flat !== 'xyz hotel' && flat !== 'test flat';
   });
 
   if (countEl) countEl.textContent = inquiries.length;
