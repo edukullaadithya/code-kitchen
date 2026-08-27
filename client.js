@@ -1385,11 +1385,13 @@ function loadAdminListings() {
     var priceStr = '₹' + priceNum.toLocaleString('en-IN');
     var commuteStr = (item.commute || '10 min') + (item.distance ? ' (' + item.distance + ')' : '');
     var safetyScore = (item.scores && item.scores.safety != null) ? item.scores.safety : (item.safety || 85);
+    var ownerDisplay = item.ownerEmail ? '<div style="font-size:0.7rem; color:var(--accent-primary); margin-top:2px;">👤 ' + item.ownerEmail + '</div>' : '';
 
     tr.innerHTML = 
       '<td>' +
         '<div style="font-weight:600;">' + (item.name || 'Property') + '</div>' +
         '<div style="font-size:0.75rem;color:var(--text-muted);">' + (item.area || '') + '</div>' +
+        ownerDisplay +
       '</td>' +
       '<td>' + cityName + '</td>' +
       '<td>' + (item.type || '1BHK') + '</td>' +
@@ -1397,7 +1399,7 @@ function loadAdminListings() {
       '<td>' + commuteStr + '</td>' +
       '<td>' + safetyScore + '/100</td>' +
       '<td>' +
-        '<button class="btn-outline" style="color:var(--accent-red);border-color:rgba(239,68,68,0.3);padding:0.35rem 0.75rem;" onclick="handleDeleteListing(' + item.id + ')">Delete</button>' +
+        '<button class="btn-outline" style="color:var(--accent-red);border-color:rgba(239,68,68,0.3);padding:0.35rem 0.75rem;cursor:pointer;" onclick="handleDeleteListing(' + item.id + ')">Delete</button>' +
       '</td>';
     tbody.appendChild(tr);
   });
