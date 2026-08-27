@@ -1232,11 +1232,17 @@ function getCurrentUserEmail() {
       if (u && u.email) return String(u.email).trim().toLowerCase();
     }
   } catch(e) {}
-  return 'admin@rentright.com';
+  return '';
 }
 
 async function handleAddNewProperty(event) {
   event.preventDefault();
+  
+  var currentEmail = getCurrentUserEmail();
+  if (!currentEmail) {
+    alert("Please sign in as an Administrator before posting a property.");
+    return;
+  }
   
   var name = document.getElementById('admin-name').value;
   var city = document.getElementById('admin-city').value;
@@ -1250,7 +1256,6 @@ async function handleAddNewProperty(event) {
   var lng = Number(document.getElementById('admin-lng').value) || 77.5946;
   var amenities = getAdminSelectedAmenities();
 
-  var currentEmail = getCurrentUserEmail();
   var newId = Date.now();
   var listingPayload = {
     id: newId,
@@ -1336,6 +1341,15 @@ function loadAdminListings() {
 
   var currentAdminEmail = getCurrentUserEmail();
 
+  // If no admin email is logged in, show clear empty state
+  if (!currentAdminEmail) {
+    if (totalCount) totalCount.textContent = '0';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2.5rem; color:var(--text-muted); font-size:0.95rem;">' +
+      '🏢 Please log in with your Administrator account to view and manage your properties.' +
+      '</td></tr>';
+    return;
+  }
+
   // Guarantee custom listings from storage are merged into in-memory ALL_LISTINGS
   mergeCustomListingsIntoAll();
 
@@ -1348,7 +1362,7 @@ function loadAdminListings() {
     });
   });
 
-  // Strict ownership: ONLY properties whose ownerEmail matches this logged-in admin
+  // Strict ownership: ONLY properties whose ownerEmail strictly matches this logged-in admin
   var myItems = allItems.filter(function(item) {
     var itemEmail = String(item.ownerEmail || '').trim().toLowerCase();
     return itemEmail.length > 0 && itemEmail === currentAdminEmail;
@@ -1419,7 +1433,7 @@ function openInquiryModal(listingId, flatName, ownerEmail) {
   if (!overlay) return;
 
   document.getElementById('inquiry-listing-id').value = listingId || '';
-  document.getElementById('inquiry-owner-email').value = ownerEmail || 'admin@rentright.com';
+  document.getElementById('inquiry-owner-email').value = ownerEmail || '';
   document.getElementById('inquiry-flat-name').textContent = flatName || 'Property';
 
   // Autofill user details if logged in
@@ -1501,7 +1515,13 @@ async function loadAdminInquiries() {
   var countEl = document.getElementById('admin-inquiries-count');
   if (!tbody) return;
 
-  var currentAdminEmail = authState.user ? authState.user.email : 'admin@rentright.com';
+  var currentAdminEmail = getCurrentUserEmail();
+  if (!currentAdminEmail) {
+    if (countEl) countEl.textContent = '0';
+    tbody.innerHTML = '';
+    return;
+  }
+
   var inquiries = [];
 
   try {
@@ -1514,15 +1534,22 @@ async function loadAdminInquiries() {
     }
   } catch(err) {}
 
-  // Merge with local inquiries for this owner
+  // Merge ONLY local inquiries strictly belonging to this admin's email
   var localInqs = getCustomInquiriesFromStorage().filter(function(i) {
-    return (!i.ownerEmail) || i.ownerEmail === currentAdminEmail;
+    var inqOwner = String(i.ownerEmail || '').trim().toLowerCase();
+    return inqOwner === currentAdminEmail;
   });
 
   localInqs.forEach(function(li) {
     if (!inquiries.some(function(i) { return i.id === li.id; })) {
       inquiries.unshift(li);
     }
+  });
+
+  // Strict filter on final inquiries list
+  inquiries = inquiries.filter(function(inq) {
+    var inqOwner = String(inq.ownerEmail || '').trim().toLowerCase();
+    return inqOwner === currentAdminEmail;
   });
 
   if (countEl) countEl.textContent = inquiries.length;

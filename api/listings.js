@@ -14,8 +14,8 @@ module.exports = async function(req, res) {
     if (!b.name || !b.city || !b.area || !b.price) return res.status(400).json({ error: 'Name, city, area and price are required.' });
     const city = normaliseCity(b.city);
     if (!LISTINGS[city]) LISTINGS[city] = [];
-    b.id = Date.now();
-    b.ownerEmail = (s && s.user) ? s.user.email : (b.ownerEmail || 'admin@rentright.com');
+    b.id = b.id || Date.now();
+    b.ownerEmail = (s && s.user && s.user.email) ? s.user.email.toLowerCase() : (b.ownerEmail ? String(b.ownerEmail).trim().toLowerCase() : '');
     LISTINGS[city].push(b);
     return res.status(201).json({ success: true, listing: b });
   }

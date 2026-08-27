@@ -6,8 +6,8 @@ module.exports = async function(req, res) {
 
   if (req.method === 'GET') {
     const s = getSessionUser(req);
-    const ownerEmail = (s && s.user) ? s.user.email : (req.query.ownerEmail || 'admin@rentright.com');
-    const myInquiries = INQUIRIES.filter(i => (!i.ownerEmail) || i.ownerEmail === ownerEmail);
+    const ownerEmail = (s && s.user && s.user.email) ? s.user.email.toLowerCase() : (req.query.ownerEmail ? String(req.query.ownerEmail).trim().toLowerCase() : '');
+    const myInquiries = ownerEmail ? INQUIRIES.filter(i => i.ownerEmail && String(i.ownerEmail).trim().toLowerCase() === ownerEmail) : [];
     return res.status(200).json({ inquiries: myInquiries });
   }
 
@@ -18,7 +18,7 @@ module.exports = async function(req, res) {
       id: 'inq_' + Date.now(),
       listingId: b.listingId,
       listingName: b.listingName,
-      ownerEmail: b.ownerEmail || 'admin@rentright.com',
+      ownerEmail: b.ownerEmail ? String(b.ownerEmail).trim().toLowerCase() : '',
       userName: b.userName,
       userEmail: b.userEmail || '',
       phone: b.phone,
