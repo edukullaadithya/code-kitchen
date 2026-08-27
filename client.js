@@ -1184,7 +1184,16 @@ function getAdminSelectedAmenities() {
 function getCustomListingsFromStorage() {
   try {
     var raw = localStorage.getItem('rentright_custom_listings');
-    return raw ? JSON.parse(raw) : [];
+    var list = raw ? JSON.parse(raw) : [];
+    // Automatically purge old test properties like xyz hotel
+    var cleaned = list.filter(function(item) {
+      var n = String(item.name || '').toLowerCase().trim();
+      return n !== 'xyz hotel' && n !== 'test flat' && n !== 'sample flat';
+    });
+    if (cleaned.length !== list.length) {
+      localStorage.setItem('rentright_custom_listings', JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch (e) {
     return [];
   }
@@ -1201,7 +1210,7 @@ function mergeCustomListingsIntoAll() {
   custom.forEach(function(item) {
     var city = (item.city || 'bengaluru').toLowerCase();
     if (!ALL_LISTINGS[city]) ALL_LISTINGS[city] = [];
-    var idx = ALL_LISTINGS[city].findIndex(function(x) { return x.id === item.id; });
+    var idx = ALL_LISTINGS[city].findIndex(function(x) { return String(x.id) === String(item.id); });
     if (idx !== -1) {
       ALL_LISTINGS[city][idx] = item;
     } else {
