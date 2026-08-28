@@ -5,6 +5,29 @@ module.exports = async function(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   if (req.method === 'GET') {
+    const s = getSessionUser(req);
+    const query = req.query || {};
+    const mine = query.mine === 'true' || query.mine === '1';
+    const ownerId = query.ownerId || query.userId || (mine && s && s.user ? s.user.id : null);
+    const ownerEmail = query.ownerEmail || (mine && s && s.user ? s.user.email : null);
+
+    if (ownerId || ownerEmail || mine) {
+      const targetId = ownerId ? String(ownerId).trim() : (s && s.user && s.user.id ? String(s.user.id).trim() : '');
+      const targetEmail = ownerEmail ? String(ownerEmail).trim().toLowerCase() : (s && s.user && s.user.email ? String(s.user.email).trim().toLowerCase() : '');
+
+      const filtered = {};
+      Object.keys(LISTINGS).forEach(city => {
+        filtered[city] = (LISTINGS[city] || []).filter(item => {
+          const itemOwnerId = String(item.ownerId || item.userId || '').trim();
+          const itemOwnerEmail = String(item.ownerEmail || '').trim().toLowerCase();
+          if (targetId && itemOwnerId && itemOwnerId === targetId) return true;
+          if (targetEmail && itemOwnerEmail && itemOwnerEmail === targetEmail) return true;
+          return false;
+        });
+      });
+      return res.status(200).json({ listings: filtered });
+    }
+
     return res.status(200).json({ listings: LISTINGS });
   }
 
@@ -15,6 +38,7 @@ module.exports = async function(req, res) {
     const city = normaliseCity(b.city);
     if (!LISTINGS[city]) LISTINGS[city] = [];
     b.id = b.id || Date.now();
+    b.ownerId = (s && s.user && s.user.id) ? s.user.id : (b.ownerId || b.userId || '');
     b.ownerEmail = (s && s.user && s.user.email) ? s.user.email.toLowerCase() : (b.ownerEmail ? String(b.ownerEmail).trim().toLowerCase() : '');
     LISTINGS[city].push(b);
     return res.status(201).json({ success: true, listing: b });

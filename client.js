@@ -199,8 +199,22 @@ function getSearchPreferences() {
 }
 
 async function requestRecommendations(preferences) {
-  var localListings = getLocalRecommendations(preferences);
-  return localListings;
+  try {
+    var response = await fetch(getApiUrl('/api/recommendations'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(preferences)
+    });
+    if (response.ok) {
+      var data = await response.json();
+      if (data.listings && Array.isArray(data.listings) && data.listings.length > 0) {
+        return data.listings;
+      }
+    }
+  } catch (err) {
+    console.warn("API recommendations fallback to local computation:", err);
+  }
+  return getLocalRecommendations(preferences);
 }
 
 function normalisePreference(value) {
@@ -223,16 +237,80 @@ function normaliseCityPreference(value) {
   return aliases[normalisePreference(value)] || normalisePreference(value);
 }
 
-function matchesWorkplacePreference(listing, workplace) {
-  var query = normalisePreference(workplace);
-  if (!query) return true;
+function matchesLocationPreference(listing, searchLocation) {
+  if (!searchLocation || !String(searchLocation).trim()) return true;
+  
+  var query = String(searchLocation).trim().toLowerCase();
+  var queryNorm = normalisePreference(query);
+  if (!queryNorm) return true;
 
-  var locality = normalisePreference(listing.area);
-  var cityName = normalisePreference(listing.city);
-  var propertyName = normalisePreference(listing.name);
-  return query.indexOf(locality) !== -1 || locality.indexOf(query) !== -1 ||
-         query.indexOf(cityName) !== -1 || cityName.indexOf(query) !== -1 ||
-         query.indexOf(propertyName) !== -1 || propertyName.indexOf(query) !== -1;
+  var area = String(listing.area || '').toLowerCase();
+  var areaNorm = normalisePreference(area);
+  var city = String(listing.city || '').toLowerCase();
+  var cityNorm = normalisePreference(city);
+  var name = String(listing.name || '').toLowerCase();
+  var nameNorm = normalisePreference(name);
+
+  // 1. Direct substring matching
+  if (area.indexOf(query) !== -1 || query.indexOf(area) !== -1 ||
+      (areaNorm && (areaNorm.indexOf(queryNorm) !== -1 || queryNorm.indexOf(areaNorm) !== -1))) {
+    return true;
+  }
+  if (city.indexOf(query) !== -1 || query.indexOf(city) !== -1 ||
+      (cityNorm && (cityNorm.indexOf(queryNorm) !== -1 || queryNorm.indexOf(cityNorm) !== -1))) {
+    return true;
+  }
+  if (name.indexOf(query) !== -1 || query.indexOf(name) !== -1 ||
+      (nameNorm && (nameNorm.indexOf(queryNorm) !== -1 || queryNorm.indexOf(nameNorm) !== -1))) {
+    return true;
+  }
+
+  // 2. Tokenized word-by-word matching
+  var tokens = query.split(/[\s,.-]+/).filter(function(t) { return t.length > 2; }).map(normalisePreference);
+  for (var i = 0; i < tokens.length; i++) {
+    var token = tokens[i];
+    if (areaNorm && (areaNorm.indexOf(token) !== -1 || token.indexOf(areaNorm) !== -1)) return true;
+    if (cityNorm && (cityNorm.indexOf(token) !== -1 || token.indexOf(cityNorm) !== -1)) return true;
+    if (nameNorm && (nameNorm.indexOf(token) !== -1 || token.indexOf(nameNorm) !== -1)) return true;
+  }
+
+  // 3. Phonetic and locality aliases
+  var aliases = [
+    ['kukatpally', 'kukattepally', 'kukatpalli'],
+    ['madhapur', 'madhapur'],
+    ['gachibowli', 'gachibowli'],
+    ['hitec', 'hitech', 'hiteccity', 'cybercity'],
+    ['koramangala', 'kora'],
+    ['indiranagar', 'indiranagar'],
+    ['whitefield', 'whitefield'],
+    ['bellandur', 'bellandur'],
+    ['hsr', 'hsrlayout'],
+    ['ecity', 'electroniccity'],
+    ['bandra', 'bandrawest', 'bandraeast'],
+    ['powai', 'powai'],
+    ['andheri', 'andheriwest', 'andherieast'],
+    ['hinjewadi', 'hinjawadi'],
+    ['koregaon', 'koregaonpark'],
+    ['baner', 'baner'],
+    ['omr', 'thoraipakkam'],
+    ['adyar', 'adyar'],
+    ['gurgaon', 'gurugram', 'cybercity']
+  ];
+
+  for (var j = 0; j < aliases.length; j++) {
+    var group = aliases[j];
+    var queryMatchesGroup = group.some(function(alias) { return queryNorm.indexOf(alias) !== -1 || alias.indexOf(queryNorm) !== -1; });
+    if (queryMatchesGroup) {
+      var listingMatchesGroup = group.some(function(alias) { return areaNorm.indexOf(alias) !== -1 || nameNorm.indexOf(alias) !== -1; });
+      if (listingMatchesGroup) return true;
+    }
+  }
+
+  return false;
+}
+
+function matchesWorkplacePreference(listing, workplace) {
+  return matchesLocationPreference(listing, workplace);
 }
 
 function getLocalRecommendations(preferences) {
@@ -240,7 +318,7 @@ function getLocalRecommendations(preferences) {
   mergeCustomListingsIntoAll();
 
   var city = normaliseCityPreference(preferences.city || 'bengaluru');
-  var workplace = String(preferences.workplace || '').trim();
+  var workplace = String(preferences.workplace || preferences.location || '').trim();
   var workplaceNorm = normalisePreference(workplace);
   var budget = Number(preferences.budget) || 0;
   var propertyType = normalisePreference(preferences.propertyType);
@@ -252,18 +330,29 @@ function getLocalRecommendations(preferences) {
   // Gather candidate properties from selected city
   var pool = (ALL_LISTINGS[city] || []).slice();
 
-  // If user searched a location keyword, also search across ALL cities to see if that location belongs to another city
+  // If user searched a location keyword, also search across ALL cities
   if (workplaceNorm) {
     Object.keys(ALL_LISTINGS).forEach(function(cKey) {
       if (cKey !== city) {
         (ALL_LISTINGS[cKey] || []).forEach(function(item) {
-          if (matchesWorkplacePreference(item, workplace)) {
-            if (!pool.some(function(p) { return p.id === item.id; })) {
+          if (matchesLocationPreference(item, workplace)) {
+            if (!pool.some(function(p) { return String(p.id) === String(item.id); })) {
               pool.push(item);
             }
           }
         });
       }
+    });
+  }
+
+  // Fallback to all cities if pool is empty
+  if (pool.length === 0) {
+    Object.keys(ALL_LISTINGS).forEach(function(cKey) {
+      (ALL_LISTINGS[cKey] || []).forEach(function(item) {
+        if (!pool.some(function(p) { return String(p.id) === String(item.id); })) {
+          pool.push(item);
+        }
+      });
     });
   }
 
@@ -275,7 +364,7 @@ function getLocalRecommendations(preferences) {
     var commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
     
     // Check match criteria
-    var matchesLocation = matchesWorkplacePreference(listing, workplace);
+    var matchesLocation = matchesLocationPreference(listing, workplace);
     var matchesType = (!propertyType || normalisePreference(listing.type) === propertyType);
     
     // Soft scoring for amenities
@@ -284,8 +373,8 @@ function getLocalRecommendations(preferences) {
     }).length;
     var amenityBonus = requestedAmenities.length ? (matchedAmenitiesCount / requestedAmenities.length) * 15 : 5;
 
-    // Location bonus: if property is in the exact area/workplace searched, massive bonus!
-    var locationBonus = (workplaceNorm && matchesLocation) ? 30 : 0;
+    // Location bonus: if property is in the area/workplace searched, strong bonus!
+    var locationBonus = (workplaceNorm && matchesLocation) ? 35 : 0;
 
     // Budget match score
     var budgetScore = budget ? Math.max(-15, 10 - Math.abs((listing.price || 0) - budget) / budget * 15) : 5;
@@ -302,18 +391,22 @@ function getLocalRecommendations(preferences) {
     return Object.assign({}, listing, {
       score: finalScore,
       matchedAmenities: matchedAmenitiesCount,
-      isExactLocationMatch: (workplaceNorm && matchesLocation)
+      isExactLocationMatch: Boolean(workplaceNorm && matchesLocation)
     });
   });
 
+  // Filter for exact location matches if any exist
+  var locationMatches = scoredCandidates.filter(function(s) { return s.isExactLocationMatch; });
+  var results = (workplaceNorm && locationMatches.length > 0) ? locationMatches : scoredCandidates;
+
   // Sort by location relevance first, then overall score
-  scoredCandidates.sort(function (a, b) {
+  results.sort(function (a, b) {
     if (a.isExactLocationMatch && !b.isExactLocationMatch) return -1;
     if (!a.isExactLocationMatch && b.isExactLocationMatch) return 1;
-    return b.score - a.score || a.price - b.price;
+    return b.score - a.score || (a.price || 0) - (b.price || 0);
   });
 
-  return scoredCandidates;
+  return results;
 }
 
 function startAISearch() {
@@ -1261,7 +1354,8 @@ async function handleAddNewProperty(event) {
   event.preventDefault();
   
   var currentEmail = getCurrentUserEmail();
-  if (!currentEmail) {
+  var currentUserId = (authState.user && authState.user.id) ? String(authState.user.id).trim() : '';
+  if (!currentEmail && !currentUserId) {
     alert("Please sign in as an Administrator before posting a property.");
     return;
   }
@@ -1288,6 +1382,7 @@ async function handleAddNewProperty(event) {
     type: type,
     commute: commute,
     distance: distance,
+    ownerId: currentUserId,
     ownerEmail: currentEmail,
     scores: {
       rent: Math.round(Math.max(10, 100 - (price/800))),
@@ -1338,7 +1433,17 @@ async function handleAddNewProperty(event) {
 
 async function fetchAndUpdateLocalListings() {
   try {
-    var response = await fetch(getApiUrl('/api/listings'));
+    var currentEmail = getCurrentUserEmail();
+    var currentUserId = (authState.user && authState.user.id) ? String(authState.user.id).trim() : '';
+    var url = getApiUrl('/api/listings');
+    if (currentUserId || currentEmail) {
+      url += '?mine=true&ownerId=' + encodeURIComponent(currentUserId) + '&ownerEmail=' + encodeURIComponent(currentEmail);
+    }
+    var response = await fetch(url, {
+      headers: {
+        'Authorization': 'Bearer ' + (authState.token || '')
+      }
+    });
     var data = await response.json();
     if (data.listings) {
       ALL_LISTINGS = data.listings;
@@ -1362,9 +1467,10 @@ function loadAdminListings() {
   if (!tbody) return;
 
   var currentAdminEmail = getCurrentUserEmail();
+  var currentAdminId = (authState.user && authState.user.id) ? String(authState.user.id).trim() : '';
 
-  // If no admin email is logged in, show clear empty state
-  if (!currentAdminEmail) {
+  // If no admin is logged in, show clear empty state
+  if (!currentAdminEmail && !currentAdminId) {
     if (totalCount) totalCount.textContent = '0';
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2.5rem; color:var(--text-muted); font-size:0.95rem;">' +
       '🏢 Please log in with your Administrator account to view and manage your properties.' +
@@ -1378,17 +1484,22 @@ function loadAdminListings() {
   var allItems = [];
   Object.keys(ALL_LISTINGS).forEach(function (city) {
     ALL_LISTINGS[city].forEach(function (item) {
-      if (!allItems.some(function(existing) { return existing.id === item.id; })) {
+      if (!allItems.some(function(existing) { return String(existing.id) === String(item.id); })) {
         allItems.push(item);
       }
     });
   });
 
-  // Strict ownership: ONLY properties whose ownerEmail strictly matches this logged-in admin
+  // Strict ownership: ONLY properties whose ownerId or ownerEmail strictly matches this logged-in admin
   var myItems = allItems.filter(function(item) {
-    var itemEmail = String(item.ownerEmail || '').trim().toLowerCase();
+    var itemOwnerId = String(item.ownerId || item.userId || '').trim();
+    var itemOwnerEmail = String(item.ownerEmail || '').trim().toLowerCase();
     var flatName = String(item.name || '').toLowerCase().trim();
-    return itemEmail.length > 0 && itemEmail === currentAdminEmail && flatName !== 'xyz hotel';
+    if (flatName === 'xyz hotel') return false;
+
+    if (currentAdminId && itemOwnerId && itemOwnerId === currentAdminId) return true;
+    if (currentAdminEmail && itemOwnerEmail && itemOwnerEmail === currentAdminEmail) return true;
+    return false;
   });
 
   if (totalCount) totalCount.textContent = myItems.length;

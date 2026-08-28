@@ -201,24 +201,86 @@ function normaliseCity(value) {
   return aliases[normalise(value)] || '';
 }
 
+function matchesLocation(listing, searchLocation) {
+  if (!searchLocation || !String(searchLocation).trim()) return true;
+  
+  const query = String(searchLocation).trim().toLowerCase();
+  const queryNorm = normalise(query);
+  if (!queryNorm) return true;
+
+  const area = String(listing.area || '').toLowerCase();
+  const areaNorm = normalise(area);
+  const city = String(listing.city || '').toLowerCase();
+  const cityNorm = normalise(city);
+  const name = String(listing.name || '').toLowerCase();
+  const nameNorm = normalise(name);
+
+  // 1. Direct substring matching
+  if (area.includes(query) || query.includes(area) ||
+      (areaNorm && (areaNorm.includes(queryNorm) || queryNorm.includes(areaNorm)))) {
+    return true;
+  }
+  if (city.includes(query) || query.includes(city) ||
+      (cityNorm && (cityNorm.includes(queryNorm) || queryNorm.includes(cityNorm)))) {
+    return true;
+  }
+  if (name.includes(query) || query.includes(name) ||
+      (nameNorm && (nameNorm.includes(queryNorm) || queryNorm.includes(nameNorm)))) {
+    return true;
+  }
+
+  // 2. Tokenized word-by-word matching
+  const tokens = query.split(/[\s,.-]+/).filter(t => t.length > 2).map(normalise);
+  for (const token of tokens) {
+    if (areaNorm && (areaNorm.includes(token) || token.includes(areaNorm))) return true;
+    if (cityNorm && (cityNorm.includes(token) || token.includes(cityNorm))) return true;
+    if (nameNorm && (nameNorm.includes(token) || token.includes(nameNorm))) return true;
+  }
+
+  // 3. Phonetic and locality aliases
+  const aliases = [
+    ['kukatpally', 'kukattepally', 'kukatpalli'],
+    ['madhapur', 'madhapur'],
+    ['gachibowli', 'gachibowli'],
+    ['hitec', 'hitech', 'hiteccity', 'cybercity'],
+    ['koramangala', 'kora'],
+    ['indiranagar', 'indiranagar'],
+    ['whitefield', 'whitefield'],
+    ['bellandur', 'bellandur'],
+    ['hsr', 'hsrlayout'],
+    ['ecity', 'electroniccity'],
+    ['bandra', 'bandrawest', 'bandraeast'],
+    ['powai', 'powai'],
+    ['andheri', 'andheriwest', 'andherieast'],
+    ['hinjewadi', 'hinjawadi'],
+    ['koregaon', 'koregaonpark'],
+    ['baner', 'baner'],
+    ['omr', 'thoraipakkam'],
+    ['adyar', 'adyar'],
+    ['gurgaon', 'gurugram', 'cybercity']
+  ];
+
+  for (const group of aliases) {
+    const queryMatchesGroup = group.some(alias => queryNorm.includes(alias) || alias.includes(queryNorm));
+    if (queryMatchesGroup) {
+      const listingMatchesGroup = group.some(alias => areaNorm.includes(alias) || nameNorm.includes(alias));
+      if (listingMatchesGroup) return true;
+    }
+  }
+
+  return false;
+}
+
 function matchesWorkplace(listing, workplace) {
-  const query = normalise(workplace);
-  if (!query) return true;
-  const locality = normalise(listing.area);
-  return query.includes(locality) || locality.includes(query);
+  return matchesLocation(listing, workplace);
 }
 
 function getRecommendedListings(preferences) {
   const city = normaliseCity(preferences.city || 'bengaluru');
-  if (!city || !LISTINGS[city]) {
-    throw new Error('Choose a supported city to get recommendations.');
-  }
+  const workplace = preferences.workplace || preferences.location || '';
+  const workplaceNorm = normalise(workplace);
   const budget = Number(preferences.budget) || 0;
   const propertyType = normalise(preferences.propertyType);
-  const workplace = preferences.workplace || '';
-  const minSafety = Number.isFinite(Number(preferences.minSafety))
-    ? Math.min(5, Math.max(1, Number(preferences.minSafety))) * 20
-    : 0;
   const maxCommute = Number.isFinite(Number(preferences.maxCommute)) && Number(preferences.maxCommute) > 0
     ? Number(preferences.maxCommute)
     : Infinity;
@@ -226,29 +288,77 @@ function getRecommendedListings(preferences) {
     ? preferences.amenities.map(normaliseAmenity).filter(Boolean)
     : [];
 
-  const candidates = LISTINGS[city].filter((listing) => {
-    const availableAmenities = listing.amenities.map(normalise);
-    const commuteMinutes = Number.parseInt(listing.commute, 10) || Infinity;
-    return (!propertyType || normalise(listing.type) === propertyType)
-      && listing.scores.safety >= minSafety
-      && commuteMinutes <= maxCommute
-      && matchesWorkplace(listing, workplace)
-      && requestedAmenities.every((amenity) => availableAmenities.includes(amenity));
+  // Gather candidate properties from selected city
+  let pool = [];
+  if (city && LISTINGS[city]) {
+    pool = [...LISTINGS[city]];
+  }
+
+  // Cross-city search if a location keyword was provided
+  if (workplaceNorm) {
+    Object.keys(LISTINGS).forEach(cKey => {
+      if (cKey !== city) {
+        (LISTINGS[cKey] || []).forEach(item => {
+          if (matchesLocation(item, workplace)) {
+            if (!pool.some(p => String(p.id) === String(item.id))) {
+              pool.push(item);
+            }
+          }
+        });
+      }
+    });
+  }
+
+  // Fallback to all cities if pool is empty
+  if (pool.length === 0) {
+    Object.keys(LISTINGS).forEach(cKey => {
+      (LISTINGS[cKey] || []).forEach(item => {
+        if (!pool.some(p => String(p.id) === String(item.id))) {
+          pool.push(item);
+        }
+      });
+    });
+  }
+
+  if (pool.length === 0) return [];
+
+  // Soft scoring algorithm
+  const scored = pool.map(listing => {
+    const availableAmenities = Array.isArray(listing.amenities) ? listing.amenities.map(normalise) : [];
+    const commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
+
+    const isLocationMatch = matchesLocation(listing, workplace);
+    const isTypeMatch = (!propertyType || normalise(listing.type) === propertyType);
+
+    const matchedAmenities = requestedAmenities.filter(a => availableAmenities.includes(a)).length;
+    const amenityBonus = requestedAmenities.length ? (matchedAmenities / requestedAmenities.length) * 15 : 5;
+    const locationBonus = (workplaceNorm && isLocationMatch) ? 35 : 0;
+    const budgetScore = budget ? Math.max(-15, 10 - Math.abs((listing.price || 0) - budget) / budget * 15) : 5;
+    const commuteScore = Math.max(-10, 8 - Math.max(0, commuteMinutes - maxCommute) * 0.5);
+    const typeScore = isTypeMatch ? 10 : -10;
+
+    const baseScore = listing.score || 85;
+    const finalScore = Math.round(Math.max(10, Math.min(99, baseScore * 0.5 + locationBonus + amenityBonus + budgetScore + commuteScore + typeScore)));
+
+    return {
+      ...listing,
+      score: finalScore,
+      matchedAmenities,
+      isExactLocationMatch: Boolean(workplaceNorm && isLocationMatch)
+    };
   });
 
-  return candidates
-    .map((listing) => {
-      const commuteMinutes = Number.parseInt(listing.commute, 10) || 90;
-      const availableAmenities = listing.amenities.map(normalise);
-      const matchedAmenities = requestedAmenities.filter((amenity) => availableAmenities.includes(amenity)).length;
-      const amenityScore = requestedAmenities.length ? (matchedAmenities / requestedAmenities.length) * 8 : 0;
-      const budgetScore = budget ? Math.max(-10, 8 - Math.abs(listing.price - budget) / budget * 12) : 0;
-      const commuteScore = Math.max(-8, 6 - Math.max(0, commuteMinutes - maxCommute) * 0.5);
-      const propertyScore = propertyType && normalise(listing.type) === propertyType ? 8 : 0;
-      const matchScore = Math.round(Math.max(0, Math.min(100, listing.score * 0.7 + amenityScore + budgetScore + commuteScore + propertyScore)));
-      return { ...listing, score: matchScore, matchedAmenities };
-    })
-    .sort((a, b) => b.score - a.score || a.price - b.price);
+  // Filter for exact location matches if any exist
+  const locationMatches = scored.filter(s => s.isExactLocationMatch);
+  const results = (workplaceNorm && locationMatches.length > 0) ? locationMatches : scored;
+
+  results.sort((a, b) => {
+    if (a.isExactLocationMatch && !b.isExactLocationMatch) return -1;
+    if (!a.isExactLocationMatch && b.isExactLocationMatch) return 1;
+    return b.score - a.score || (a.price || 0) - (b.price || 0);
+  });
+
+  return results;
 }
 
 function serveStatic(request, response, pathname) {
@@ -434,6 +544,30 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === 'GET' && url.pathname === '/api/listings') {
+    const token = getSessionToken(request);
+    const sessionUser = SESSIONS.get(token);
+    const mine = url.searchParams.get('mine') === 'true' || url.searchParams.get('mine') === '1';
+    const ownerId = url.searchParams.get('ownerId') || url.searchParams.get('userId') || (mine && sessionUser ? sessionUser.id : null);
+    const ownerEmail = url.searchParams.get('ownerEmail') || (mine && sessionUser ? sessionUser.email : null);
+
+    if (ownerId || ownerEmail || mine) {
+      const targetId = ownerId ? String(ownerId).trim() : (sessionUser && sessionUser.id ? String(sessionUser.id).trim() : '');
+      const targetEmail = ownerEmail ? String(ownerEmail).trim().toLowerCase() : (sessionUser && sessionUser.email ? String(sessionUser.email).trim().toLowerCase() : '');
+
+      const filtered = {};
+      Object.keys(LISTINGS).forEach(city => {
+        filtered[city] = (LISTINGS[city] || []).filter(item => {
+          const itemOwnerId = String(item.ownerId || item.userId || '').trim();
+          const itemOwnerEmail = String(item.ownerEmail || '').trim().toLowerCase();
+          if (targetId && itemOwnerId && itemOwnerId === targetId) return true;
+          if (targetEmail && itemOwnerEmail && itemOwnerEmail === targetEmail) return true;
+          return false;
+        });
+      });
+      sendJson(response, 200, { listings: filtered });
+      return;
+    }
+
     sendJson(response, 200, { listings: LISTINGS }); return;
   }
 
@@ -450,7 +584,8 @@ const server = http.createServer(async (request, response) => {
         LISTINGS[city] = [];
       }
       listing.id = Date.now();
-      listing.ownerEmail = (sessionUser && sessionUser.email) ? sessionUser.email : (listing.ownerEmail || 'admin@rentright.com');
+      listing.ownerId = (sessionUser && sessionUser.id) ? sessionUser.id : (listing.ownerId || listing.userId || '');
+      listing.ownerEmail = (sessionUser && sessionUser.email) ? sessionUser.email.toLowerCase() : (listing.ownerEmail ? String(listing.ownerEmail).trim().toLowerCase() : '');
       LISTINGS[city].push(listing);
       saveListings();
       sendJson(response, 201, { success: true, listing });
