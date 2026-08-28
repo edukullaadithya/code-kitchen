@@ -348,13 +348,10 @@ function getRecommendedListings(preferences) {
     };
   });
 
-  // Filter for exact location matches if any exist
-  const locationMatches = scored.filter(s => s.isExactLocationMatch);
-  const results = (workplaceNorm && locationMatches.length > 0) ? locationMatches : scored;
+  // Filter for exact location matches if any workplace/area was searched
+  const results = workplaceNorm ? scored.filter(s => s.isExactLocationMatch) : scored;
 
   results.sort((a, b) => {
-    if (a.isExactLocationMatch && !b.isExactLocationMatch) return -1;
-    if (!a.isExactLocationMatch && b.isExactLocationMatch) return 1;
     return b.score - a.score || (a.price || 0) - (b.price || 0);
   });
 

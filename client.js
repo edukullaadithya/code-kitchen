@@ -417,14 +417,11 @@ function getLocalRecommendations(preferences) {
     });
   });
 
-  // Filter for exact location matches if any exist
-  var locationMatches = scoredCandidates.filter(function(s) { return s.isExactLocationMatch; });
-  var results = (workplaceNorm && locationMatches.length > 0) ? locationMatches : scoredCandidates;
+  // Filter for exact location matches if any workplace/area was searched
+  var results = workplaceNorm ? scoredCandidates.filter(function(s) { return s.isExactLocationMatch; }) : scoredCandidates;
 
-  // Sort by location relevance first, then overall score
+  // Sort by overall score and price
   results.sort(function (a, b) {
-    if (a.isExactLocationMatch && !b.isExactLocationMatch) return -1;
-    if (!a.isExactLocationMatch && b.isExactLocationMatch) return 1;
     return b.score - a.score || (a.price || 0) - (b.price || 0);
   });
 
@@ -567,7 +564,17 @@ function renderListings(list) {
   grid.innerHTML = '';
 
   if (!list.length) {
-    grid.innerHTML = '<p class="results-sub">No listings match those filters in this city. Try a higher commute limit, fewer amenities, or another property type.</p>';
+    var locInput = document.getElementById('location-input');
+    var locVal = locInput ? locInput.value.trim() : '';
+    if (locVal) {
+      grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:3.5rem 1.5rem; background:var(--bg-glass); border:1px solid var(--border-subtle); border-radius:16px;">' +
+        '<div style="font-size:2.2rem; margin-bottom:0.75rem;">📍</div>' +
+        '<h3 style="margin-bottom:0.5rem; color:var(--text-primary);">No properties found in "' + locVal + '"</h3>' +
+        '<p style="color:var(--text-muted); font-size:0.92rem; max-width:480px; margin:0 auto;">No active listings currently match this specific area. Try searching for a nearby locality (e.g. Kukatpally) or post a new flat in the Seller Portal.</p>' +
+        '</div>';
+    } else {
+      grid.innerHTML = '<p class="results-sub" style="grid-column:1/-1; text-align:center; padding:2rem;">No listings match those criteria. Try adjusting your budget or commute limit.</p>';
+    }
     return;
   }
 
