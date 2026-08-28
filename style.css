@@ -410,11 +410,11 @@ h3 { font-size: 1.2rem; }
 
 /* ===== SECTION HEADER ===== */
 .section-header {
-  text-align: center;
-  margin-bottom: 4rem;
+  text-align: left;
+  margin-bottom: 3.5rem;
 }
 .section-header h2 { margin-bottom: 0.75rem; }
-.section-header p { color: var(--text-secondary); font-size: 1.05rem; max-width: 500px; margin: 0 auto; }
+.section-header p { color: var(--text-secondary); font-size: 1.05rem; max-width: 650px; margin: 0; }
 .section-tag {
   display: inline-block;
   background: rgba(99,102,241,0.1);
@@ -925,7 +925,7 @@ h3 { font-size: 1.2rem; }
 /* ===== CTA SECTION ===== */
 .cta-section { padding: 80px 0; }
 .cta-card {
-  padding: 4rem; text-align: center; position: relative; overflow: hidden;
+  padding: 4rem; text-align: left; position: relative; overflow: hidden;
 }
 .cta-glow {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -954,7 +954,7 @@ h3 { font-size: 1.2rem; }
 .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
 .footer-col a { color: var(--text-muted); font-size: 0.875rem; transition: var(--transition); }
 .footer-col a:hover { color: var(--text-primary); }
-.footer-bottom { border-top: 1px solid var(--border-subtle); padding-top: 1.5rem; text-align: center; }
+.footer-bottom { border-top: 1px solid var(--border-subtle); padding-top: 1.5rem; text-align: left; }
 .footer-bottom p { color: var(--text-muted); font-size: 0.82rem; }
 
 /* ===== SCROLL ANIMATIONS ===== */
