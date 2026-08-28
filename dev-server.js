@@ -373,8 +373,41 @@ function matchesLocation(listing, searchLocation) {
   return { match: false, relevanceScore: 0.0 };
 }
 
-function matchesWorkplace(listing, workplace) {
-  const result = matchesLocation(listing, workplace);
+function matchesCombinedCityAndPlace(listing, selectedCity, searchPlace) {
+  const listingCity = normaliseCity(listing.city || '');
+  const targetCity = normaliseCity(selectedCity || '');
+
+  const rawPlace = String(searchPlace || '').trim().toLowerCase();
+  let detectedCity = '';
+  const cities = ['hyderabad', 'bengaluru', 'mumbai', 'pune', 'chennai', 'delhi'];
+  for (const c of cities) {
+    if (rawPlace.includes(c) || (c === 'bengaluru' && rawPlace.includes('bangalore')) || (c === 'mumbai' && rawPlace.includes('bombay'))) {
+      detectedCity = c;
+      break;
+    }
+  }
+
+  const effectiveCity = detectedCity || targetCity;
+
+  // 1. City match check: Must match the city
+  if (effectiveCity && listingCity && listingCity !== effectiveCity) {
+    return { match: false, relevanceScore: 0 };
+  }
+
+  // 2. Place/Area match check: Must match the place/area
+  if (rawPlace) {
+    const cleanPlace = rawPlace.replace(/\b(hyderabad|bengaluru|bangalore|mumbai|bombay|pune|chennai|madras|delhi|gurgaon|gurugram)\b/gi, '').trim();
+    if (!cleanPlace) {
+      return { match: true, relevanceScore: 1.0 };
+    }
+    return matchesLocation(listing, cleanPlace);
+  }
+
+  return { match: true, relevanceScore: 1.0 };
+}
+
+function matchesWorkplace(listing, workplace, city) {
+  const result = matchesCombinedCityAndPlace(listing, city, workplace);
   return result && result.match;
 }
 
@@ -391,38 +424,15 @@ function getRecommendedListings(preferences) {
     ? preferences.amenities.map(normaliseAmenity).filter(Boolean)
     : [];
 
-  // 1. Gather candidate pool
+  // 1. Gather candidate pool across all listings
   let pool = [];
-  if (city && LISTINGS[city]) {
-    pool = [...LISTINGS[city]];
-  }
-
-  // Cross-city location search
-  if (workplaceNorm) {
-    Object.keys(LISTINGS).forEach(cKey => {
-      if (cKey !== city) {
-        (LISTINGS[cKey] || []).forEach(item => {
-          const locEval = matchesLocation(item, workplace);
-          if (locEval && locEval.match) {
-            if (!pool.some(p => String(p.id) === String(item.id))) {
-              pool.push(item);
-            }
-          }
-        });
+  Object.keys(LISTINGS).forEach(cKey => {
+    (LISTINGS[cKey] || []).forEach(item => {
+      if (!pool.some(p => String(p.id) === String(item.id))) {
+        pool.push(item);
       }
     });
-  }
-
-  // Fallback to all cities if pool is empty
-  if (pool.length === 0) {
-    Object.keys(LISTINGS).forEach(cKey => {
-      (LISTINGS[cKey] || []).forEach(item => {
-        if (!pool.some(p => String(p.id) === String(item.id))) {
-          pool.push(item);
-        }
-      });
-    });
-  }
+  });
 
   if (pool.length === 0) return [];
 
@@ -431,7 +441,7 @@ function getRecommendedListings(preferences) {
     const availableAmenities = Array.isArray(listing.amenities) ? listing.amenities.map(normalise) : [];
     const commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
 
-    const locEval = matchesLocation(listing, workplace);
+    const locEval = matchesCombinedCityAndPlace(listing, city, workplace);
     const isLocationMatch = locEval && locEval.match;
     const locRelevance = (locEval && locEval.relevanceScore) || 0.0;
 
@@ -459,12 +469,12 @@ function getRecommendedListings(preferences) {
       ...listing,
       score: finalScore,
       matchedAmenities,
-      isExactLocationMatch: Boolean(workplaceNorm && isLocationMatch)
+      isExactLocationMatch: Boolean(isLocationMatch)
     };
   });
 
-  // Filter strictly if location was searched
-  const results = workplaceNorm ? scored.filter(s => s.isExactLocationMatch) : scored;
+  // Filter strictly by combined city and place match
+  const results = scored.filter(s => s.isExactLocationMatch);
 
   results.sort((a, b) => {
     return b.score - a.score || (a.price || 0) - (b.price || 0);

@@ -443,8 +443,42 @@ function matchesLocationPreference(listing, searchLocation) {
   return { match: false, relevanceScore: 0.0 };
 }
 
-function matchesWorkplacePreference(listing, workplace) {
-  var result = matchesLocationPreference(listing, workplace);
+function matchesCombinedCityAndPlacePreference(listing, selectedCity, searchPlace) {
+  var listingCity = normaliseCityPreference(listing.city || '');
+  var targetCity = normaliseCityPreference(selectedCity || '');
+
+  var rawPlace = String(searchPlace || '').trim().toLowerCase();
+  var detectedCity = '';
+  var cities = ['hyderabad', 'bengaluru', 'mumbai', 'pune', 'chennai', 'delhi'];
+  for (var i = 0; i < cities.length; i++) {
+    var c = cities[i];
+    if (rawPlace.indexOf(c) !== -1 || (c === 'bengaluru' && rawPlace.indexOf('bangalore') !== -1) || (c === 'mumbai' && rawPlace.indexOf('bombay') !== -1)) {
+      detectedCity = c;
+      break;
+    }
+  }
+
+  var effectiveCity = detectedCity || targetCity;
+
+  // 1. City match check: Must match the city
+  if (effectiveCity && listingCity && listingCity !== effectiveCity) {
+    return { match: false, relevanceScore: 0 };
+  }
+
+  // 2. Place/Area match check: Must match the place/area
+  if (rawPlace) {
+    var cleanPlace = rawPlace.replace(/\b(hyderabad|bengaluru|bangalore|mumbai|bombay|pune|chennai|madras|delhi|gurgaon|gurugram)\b/gi, '').trim();
+    if (!cleanPlace) {
+      return { match: true, relevanceScore: 1.0 };
+    }
+    return matchesLocationPreference(listing, cleanPlace);
+  }
+
+  return { match: true, relevanceScore: 1.0 };
+}
+
+function matchesWorkplacePreference(listing, workplace, city) {
+  var result = matchesCombinedCityAndPlacePreference(listing, city, workplace);
   return result && result.match;
 }
 
@@ -454,7 +488,6 @@ function getLocalRecommendations(preferences) {
 
   var city = normaliseCityPreference(preferences.city || 'bengaluru');
   var workplace = String(preferences.workplace || preferences.location || '').trim();
-  var workplaceNorm = normalisePreference(workplace);
   var budget = Number(preferences.budget) || 0;
   var propertyType = normalisePreference(preferences.propertyType);
   var maxCommute = Number(preferences.maxCommute) > 0 ? Number(preferences.maxCommute) : Infinity;
@@ -462,44 +495,24 @@ function getLocalRecommendations(preferences) {
     ? preferences.amenities.map(normaliseAmenityPreference).filter(Boolean)
     : [];
 
-  // Gather candidate properties from selected city
-  var pool = (ALL_LISTINGS[city] || []).slice();
-
-  // If user searched a location keyword, also search across ALL cities
-  if (workplaceNorm) {
-    Object.keys(ALL_LISTINGS).forEach(function(cKey) {
-      if (cKey !== city) {
-        (ALL_LISTINGS[cKey] || []).forEach(function(item) {
-          var locEval = matchesLocationPreference(item, workplace);
-          if (locEval && locEval.match) {
-            if (!pool.some(function(p) { return String(p.id) === String(item.id); })) {
-              pool.push(item);
-            }
-          }
-        });
+  // Gather candidate pool across all listings
+  var pool = [];
+  Object.keys(ALL_LISTINGS).forEach(function(cKey) {
+    (ALL_LISTINGS[cKey] || []).forEach(function(item) {
+      if (!pool.some(function(p) { return String(p.id) === String(item.id); })) {
+        pool.push(item);
       }
     });
-  }
-
-  // Fallback to all cities if pool is empty
-  if (pool.length === 0) {
-    Object.keys(ALL_LISTINGS).forEach(function(cKey) {
-      (ALL_LISTINGS[cKey] || []).forEach(function(item) {
-        if (!pool.some(function(p) { return String(p.id) === String(item.id); })) {
-          pool.push(item);
-        }
-      });
-    });
-  }
+  });
 
   if (!pool.length) return [];
 
-  // 2. ML Multi-Factor Ranking
+  // 2. ML Multi-Factor Ranking with Combined City & Place evaluation
   var scoredCandidates = pool.map(function(listing) {
     var availAmenities = (listing.amenities || []).map(normalisePreference);
     var commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
     
-    var locEval = matchesLocationPreference(listing, workplace);
+    var locEval = matchesCombinedCityAndPlacePreference(listing, city, workplace);
     var isLocationMatch = locEval && locEval.match;
     var locRelevance = (locEval && locEval.relevanceScore) || 0.0;
 
@@ -528,12 +541,12 @@ function getLocalRecommendations(preferences) {
     return Object.assign({}, listing, {
       score: finalScore,
       matchedAmenities: matchedAmenitiesCount,
-      isExactLocationMatch: Boolean(workplaceNorm && isLocationMatch)
+      isExactLocationMatch: Boolean(isLocationMatch)
     });
   });
 
-  // Filter strictly if location was searched
-  var results = workplaceNorm ? scoredCandidates.filter(function(s) { return s.isExactLocationMatch; }) : scoredCandidates;
+  // Filter strictly by combined city and place match
+  var results = scoredCandidates.filter(function(s) { return s.isExactLocationMatch; });
 
   // Sort by overall score and price
   results.sort(function (a, b) {
