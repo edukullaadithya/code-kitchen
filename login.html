@@ -10,7 +10,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function() {
-      var LATEST_VER = "v_20260828_04";
+      var LATEST_VER = "v_20260828_05";
       if (localStorage.getItem("rr_version") !== LATEST_VER) {
         localStorage.setItem("rr_version", LATEST_VER);
         if (!window.location.search.includes(LATEST_VER)) {
@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="style.css?v=20260828_04" />
+  <link rel="stylesheet" href="style.css?v=20260828_05" />
   <style>
     /* Custom Scoped Styles for the New Dark Futuristic Login Page */
     :root {
@@ -198,19 +198,29 @@
       font-weight: 600;
     }
 
-    .hero-content {
-      display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
+    .login-hero-copy {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      justify-content: flex-start !important;
+      text-align: left !important;
+      gap: 0.85rem !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
     }
 
     .hero-heading {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: clamp(2.4rem, 4vw, 3.4rem);
-      font-weight: 800;
-      line-height: 1.12;
-      letter-spacing: -0.03em;
-      color: #ffffff;
+      font-family: 'Space Grotesk', sans-serif !important;
+      font-size: clamp(2.4rem, 4vw, 3.4rem) !important;
+      font-weight: 800 !important;
+      line-height: 1.12 !important;
+      letter-spacing: -0.03em !important;
+      color: #ffffff !important;
+      text-align: left !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      align-self: flex-start !important;
     }
 
     .hero-heading .glow-gradient {
@@ -221,10 +231,14 @@
     }
 
     .hero-subtext {
-      color: #94a3b8;
-      font-size: 1.05rem;
-      line-height: 1.55;
-      max-width: 520px;
+      color: #94a3b8 !important;
+      font-size: 1.05rem !important;
+      line-height: 1.55 !important;
+      max-width: 560px !important;
+      text-align: left !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      align-self: flex-start !important;
     }
 
     /* Multi-Image Rotating Slideshow Carousel (5s interval) */
@@ -914,7 +928,7 @@
       </a>
 
       <!-- Hero Headline & Description -->
-      <div class="hero-content">
+      <div class="login-hero-copy">
         <h2 class="hero-heading">
           The right home<br />
           changes <span class="glow-gradient">everything.</span>
