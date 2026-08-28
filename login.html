@@ -10,7 +10,7 @@
   <meta http-equiv="Expires" content="0" />
   <script>
     (function() {
-      var LATEST_VER = "v_20260828_03";
+      var LATEST_VER = "v_20260828_04";
       if (localStorage.getItem("rr_version") !== LATEST_VER) {
         localStorage.setItem("rr_version", LATEST_VER);
         if (!window.location.search.includes(LATEST_VER)) {
@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="style.css?v=20260828_03" />
+  <link rel="stylesheet" href="style.css?v=20260828_04" />
   <style>
     /* Custom Scoped Styles for the New Dark Futuristic Login Page */
     :root {
@@ -834,18 +834,20 @@
       .login-wrapper {
         grid-template-columns: 1fr;
         gap: 2.5rem;
-        max-width: 600px;
+        max-width: 100%;
+        margin-left: 0;
       }
       .hero-panel {
         padding-right: 0;
-        text-align: center;
-        align-items: center;
+        text-align: left;
+        align-items: flex-start;
       }
       .brand-header {
-        justify-content: center;
+        justify-content: flex-start;
       }
       .hero-subtext {
-        margin: 0 auto;
+        margin: 0;
+        text-align: left;
       }
       .features-row {
         text-align: left;
