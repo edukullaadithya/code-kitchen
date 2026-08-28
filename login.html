@@ -210,35 +210,121 @@
       max-width: 520px;
     }
 
-    /* Hero Villa Showcase Image Card */
-    .showcase-media-card {
+    /* Multi-Image Rotating Slideshow Carousel (5s interval) */
+    .showcase-carousel-wrap {
       position: relative;
       border-radius: 20px;
       overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(124, 58, 237, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.65), 0 0 35px rgba(124, 58, 237, 0.2);
       aspect-ratio: 16 / 9;
       background: #0d1124;
     }
 
-    .showcase-media-card img {
+    .carousel-track {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .carousel-slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1), transform 1.2s ease;
+      transform: scale(1.03);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .carousel-slide.active {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+      z-index: 2;
+    }
+
+    .carousel-slide img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
       filter: contrast(1.05) brightness(0.95);
-      transition: transform 0.6s ease;
-    }
-
-    .showcase-media-card:hover img {
-      transform: scale(1.03);
     }
 
     .showcase-media-overlay {
       position: absolute;
       inset: 0;
-      background: linear-gradient(180deg, rgba(7, 9, 19, 0.05) 0%, rgba(7, 9, 19, 0.35) 60%, rgba(7, 9, 19, 0.85) 100%);
+      background: linear-gradient(180deg, rgba(7, 9, 19, 0.05) 0%, rgba(7, 9, 19, 0.25) 50%, rgba(7, 9, 19, 0.85) 100%);
       pointer-events: none;
+      z-index: 3;
+    }
+
+    .carousel-caption-badge {
+      position: absolute;
+      bottom: 1.15rem;
+      left: 1.15rem;
+      z-index: 4;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.4rem 0.85rem;
+      background: rgba(10, 15, 30, 0.78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 50px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #ffffff;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      transition: opacity 0.3s ease;
+    }
+
+    .carousel-indicators {
+      position: absolute;
+      bottom: 1.25rem;
+      right: 1.15rem;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .carousel-indicators .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.35);
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .carousel-indicators .dot.active {
+      width: 22px;
+      border-radius: 12px;
+      background: linear-gradient(90deg, #818cf8, #c084fc);
+      box-shadow: 0 0 10px rgba(192, 132, 252, 0.7);
+    }
+
+    .carousel-progress-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      z-index: 5;
+      overflow: hidden;
+    }
+
+    .carousel-progress-bar .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #6366f1, #a855f7, #38bdf8);
+      transition: width 0.05s linear;
     }
 
     /* Feature Value Props Grid */
@@ -781,19 +867,30 @@
     <!-- LEFT COLUMN: HERO SHOWCASE -->
     <div class="hero-panel">
       
-      <!-- Brand Header -->
-      <div class="brand-header">
-        <div class="brand-logo-pin">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 10.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/>
-            <path d="M12 6.5l-2.5 2h1v2h3v-2h1z"/>
-          </svg>
-        </div>
+      <!-- Original App Logo Header -->
+      <a href="index.html" class="brand-header" style="text-decoration:none;">
+        <svg class="logo-svg" viewBox="0 0 100 100" width="46" height="46" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+          <defs>
+            <linearGradient id="loginPinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#0052d4" />
+              <stop offset="50%" stop-color="#4364f7" />
+              <stop offset="100%" stop-color="#6fb1fc" />
+            </linearGradient>
+          </defs>
+          <!-- Map Pin base shape -->
+          <path d="M50 90C72 68 85 49 85 32C85 13 69 0 50 0C31 0 15 13 15 32C15 49 28 68 50 90Z" fill="url(#loginPinGrad)"/>
+          <!-- Inner white circle -->
+          <circle cx="50" cy="32" r="22" fill="#ffffff" />
+          <!-- Blue house shape inside -->
+          <path d="M50 18L32 32V47H42V37H58V47H68V32L50 18Z" fill="#0052d4" />
+          <!-- Small window inside the house -->
+          <rect x="47" y="27" width="6" height="6" fill="#ffffff" />
+        </svg>
         <div class="brand-title-wrap">
-          <h1 class="brand-name">Rent<span>Right</span></h1>
+          <h1 class="brand-name" style="font-family:'Space Grotesk',sans-serif; font-size:1.65rem; font-weight:700; color:#ffffff;">Rent<span style="background:linear-gradient(135deg,#0052d4,#4364f7,#6fb1fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Right</span></h1>
           <p class="brand-tagline">Find the <span class="hl-right">right</span> place to <span class="hl-live">live.</span></p>
         </div>
-      </div>
+      </a>
 
       <!-- Hero Headline & Description -->
       <div class="hero-content">
@@ -806,14 +903,71 @@
         </p>
       </div>
 
-      <!-- Modern Villa Showcase Image Card -->
-      <div class="showcase-media-card">
-        <img 
-          src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80" 
-          alt="Luxury illuminated modern villa at night with pool reflection and city lights" 
-          loading="lazy"
-        />
+      <!-- Multi-Image Rotating Slideshow Carousel (5s interval) -->
+      <div class="showcase-carousel-wrap" id="showcase-carousel">
+        <div class="carousel-track">
+          <!-- Slide 1 -->
+          <div class="carousel-slide active" data-caption="Luxury Villa · Kukatpally, Hyderabad">
+            <img 
+              src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80" 
+              alt="Luxury illuminated modern villa at night with pool reflection" 
+              loading="lazy"
+            />
+          </div>
+          <!-- Slide 2 -->
+          <div class="carousel-slide" data-caption="Modern High-Rise · Cyber City, Hyderabad">
+            <img 
+              src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80" 
+              alt="Contemporary luxury home with floor-to-ceiling glass" 
+              loading="lazy"
+            />
+          </div>
+          <!-- Slide 3 -->
+          <div class="carousel-slide" data-caption="Skyline Penthouse · Indiranagar, Bengaluru">
+            <img 
+              src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80" 
+              alt="Stunning upscale beachfront penthouse villa" 
+              loading="lazy"
+            />
+          </div>
+          <!-- Slide 4 -->
+          <div class="carousel-slide" data-caption="Premium Smart Apartment · Bandra, Mumbai">
+            <img 
+              src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80" 
+              alt="Sleek minimalist interior with garden view" 
+              loading="lazy"
+            />
+          </div>
+          <!-- Slide 5 -->
+          <div class="carousel-slide" data-caption="Executive Suites · Madhapur, Hyderabad">
+            <img 
+              src="https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=1200&q=80" 
+              alt="Modernist estate with serene infinity pool" 
+              loading="lazy"
+            />
+          </div>
+        </div>
+
         <div class="showcase-media-overlay"></div>
+
+        <!-- Slide Caption Badge -->
+        <div class="carousel-caption-badge">
+          <span>📍</span><span id="caption-text">Luxury Villa · Kukatpally, Hyderabad</span>
+        </div>
+
+        <!-- Carousel Indicators -->
+        <div class="carousel-indicators" id="carousel-dots">
+          <button type="button" class="dot active" onclick="goToSlide(0)" aria-label="Slide 1"></button>
+          <button type="button" class="dot" onclick="goToSlide(1)" aria-label="Slide 2"></button>
+          <button type="button" class="dot" onclick="goToSlide(2)" aria-label="Slide 3"></button>
+          <button type="button" class="dot" onclick="goToSlide(3)" aria-label="Slide 4"></button>
+          <button type="button" class="dot" onclick="goToSlide(4)" aria-label="Slide 5"></button>
+        </div>
+
+        <!-- Progress Bar for 5s Timestamp -->
+        <div class="carousel-progress-bar">
+          <div class="progress-fill" id="carousel-progress"></div>
+        </div>
       </div>
 
       <!-- 3 Feature Badges -->
@@ -1224,6 +1378,81 @@
         submitBtn.disabled = false;
         submitText.textContent = originalText;
       }
+    }
+
+    // ===== 5-SECOND (5000ms) IMAGE SLIDESHOW CONTROLLER =====
+    var currentSlideIdx = 0;
+    var slideIntervalMs = 5000;
+    var slideTimer = null;
+    var progressTimer = null;
+    var progressStartTime = null;
+
+    var slides = document.querySelectorAll('.carousel-slide');
+    var dots = document.querySelectorAll('.carousel-indicators .dot');
+    var captionEl = document.getElementById('caption-text');
+    var progressEl = document.getElementById('carousel-progress');
+
+    function showSlide(idx) {
+      if (!slides.length) return;
+      currentSlideIdx = (idx + slides.length) % slides.length;
+
+      slides.forEach(function(s, i) {
+        if (i === currentSlideIdx) {
+          s.classList.add('active');
+        } else {
+          s.classList.remove('active');
+        }
+      });
+
+      dots.forEach(function(d, i) {
+        if (i === currentSlideIdx) {
+          d.classList.add('active');
+        } else {
+          d.classList.remove('active');
+        }
+      });
+
+      if (captionEl && slides[currentSlideIdx]) {
+        captionEl.textContent = slides[currentSlideIdx].getAttribute('data-caption') || 'Premium Rental Listing';
+      }
+
+      startProgressBar();
+    }
+
+    function startProgressBar() {
+      if (progressTimer) clearInterval(progressTimer);
+      if (progressEl) progressEl.style.width = '0%';
+      progressStartTime = Date.now();
+
+      progressTimer = setInterval(function() {
+        var elapsed = Date.now() - progressStartTime;
+        var pct = Math.min(100, (elapsed / slideIntervalMs) * 100);
+        if (progressEl) progressEl.style.width = pct + '%';
+        if (elapsed >= slideIntervalMs) {
+          clearInterval(progressTimer);
+        }
+      }, 50);
+    }
+
+    function nextSlide() {
+      showSlide(currentSlideIdx + 1);
+    }
+
+    function goToSlide(idx) {
+      if (slideTimer) clearInterval(slideTimer);
+      showSlide(idx);
+      startSlideInterval();
+    }
+
+    function startSlideInterval() {
+      if (slideTimer) clearInterval(slideTimer);
+      slideTimer = setInterval(nextSlide, slideIntervalMs);
+    }
+
+    // Initialize auto slideshow
+    if (slides.length > 0) {
+      showSlide(0);
+      startSlideInterval();
     }
   </script>
 </body>
