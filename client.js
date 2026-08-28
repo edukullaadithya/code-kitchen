@@ -847,6 +847,9 @@ function renderListings(rawList) {
       '<div class="card-body">' +
         '<div class="card-title">' + l.name + '</div>' +
         '<div class="card-location">📍 ' + l.area + ' · ' + l.type + '</div>' +
+        '<div class="card-owner" style="margin: 0.4rem 0 0.6rem 0; font-size: 0.82rem; color: #818cf8; background: rgba(99,102,241,0.08); padding: 0.3rem 0.6rem; border-radius: 6px; border: 1px solid rgba(99,102,241,0.2); display: flex; align-items: center; gap: 0.35rem;">' +
+          '<span>👤</span><span>Admin: <strong style="color:var(--text-primary);">' + (l.ownerEmail || 'edukullaadithya08@gmail.com') + '</strong></span>' +
+        '</div>' +
         '<div class="card-metrics">' +
           '<div class="card-metric"><div class="metric-val" style="color:#6366f1">' + l.distance + '</div><div class="metric-name">Distance</div></div>' +
           '<div class="card-metric"><div class="metric-val" style="color:#06b6d4">' + l.commute + '</div><div class="metric-name">Commute</div></div>' +
@@ -980,6 +983,9 @@ function openProperty(rawL) {
       '<div>' +
         '<h2 class="property-title">' + l.name + '</h2>' +
         '<div class="property-location">📍 ' + l.area + ', ' + l.city + ' · ' + l.type + '</div>' +
+        '<div style="margin-top:0.6rem; display:inline-flex; align-items:center; gap:0.4rem; font-size:0.85rem; color:#818cf8; background:rgba(99,102,241,0.12); padding:0.35rem 0.8rem; border-radius:8px; border:1px solid rgba(99,102,241,0.25);">' +
+          '<span>👤 Verified Admin Email:</span><strong style="color:#ffffff">' + (l.ownerEmail || 'edukullaadithya08@gmail.com') + '</strong>' +
+        '</div>' +
       '</div>' +
       '<div>' +
         '<div class="property-price">₹' + (Number(l.price) || 0).toLocaleString('en-IN') + '<span>/month</span></div>' +
