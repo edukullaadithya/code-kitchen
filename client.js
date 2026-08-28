@@ -269,12 +269,82 @@ function normaliseCityPreference(value) {
   return aliases[normalisePreference(value)] || normalisePreference(value);
 }
 
+var PINCODE_MAP = {
+  // Hyderabad
+  '500072': { area: 'kukatpally', city: 'hyderabad' },
+  '500081': { area: 'madhapur', city: 'hyderabad' },
+  '500032': { area: 'gachibowli', city: 'hyderabad' },
+  '500084': { area: 'kondapur', city: 'hyderabad' },
+  '500034': { area: 'banjara hills', city: 'hyderabad' },
+  '500033': { area: 'jubilee hills', city: 'hyderabad' },
+  '500016': { area: 'begumpet', city: 'hyderabad' },
+  '500082': { area: 'somajiguda', city: 'hyderabad' },
+  // Bengaluru
+  '560038': { area: 'indiranagar', city: 'bengaluru' },
+  '560034': { area: 'koramangala', city: 'bengaluru' },
+  '560066': { area: 'whitefield', city: 'bengaluru' },
+  '560102': { area: 'hsr layout', city: 'bengaluru' },
+  '560103': { area: 'bellandur', city: 'bengaluru' },
+  '560100': { area: 'electronic city', city: 'bengaluru' },
+  // Mumbai
+  '400050': { area: 'bandra west', city: 'mumbai' },
+  '400058': { area: 'andheri west', city: 'mumbai' },
+  '400076': { area: 'powai', city: 'mumbai' },
+  // Pune
+  '411057': { area: 'hinjewadi', city: 'pune' },
+  '411001': { area: 'koregaon park', city: 'pune' },
+  '411045': { area: 'baner', city: 'pune' },
+  // Chennai
+  '600097': { area: 'thoraipakkam', city: 'chennai' },
+  '600020': { area: 'adyar', city: 'chennai' },
+  // Delhi
+  '122002': { area: 'gurgaon', city: 'delhi' },
+  '110017': { area: 'saket', city: 'delhi' }
+};
+
+var LANDMARK_MAP = {
+  'kphb': 'kukatpally',
+  'jntu': 'kukatpally',
+  'forum mall': 'kukatpally',
+  'cyber towers': 'madhapur',
+  'mindspace': 'madhapur',
+  'inorbit': 'madhapur',
+  'dlf': 'gachibowli',
+  'financial district': 'gachibowli',
+  '100ft road': 'indiranagar',
+  'sony world': 'koramangala',
+  'itpl': 'whitefield'
+};
+
+function levenshteinDistance(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  var matrix = [];
+  for (var i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (var j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (var i = 1; i <= b.length; i++) {
+    for (var j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
 function matchesLocationPreference(listing, searchLocation) {
-  if (!searchLocation || !String(searchLocation).trim()) return true;
+  if (!searchLocation || !String(searchLocation).trim()) return { match: true, relevanceScore: 1.0 };
   
-  var query = String(searchLocation).trim().toLowerCase();
-  var queryNorm = normalisePreference(query);
-  if (!queryNorm) return true;
+  var rawQuery = String(searchLocation).trim().toLowerCase();
+  var queryNorm = normalisePreference(rawQuery);
+  if (!queryNorm) return { match: true, relevanceScore: 1.0 };
 
   var area = String(listing.area || '').toLowerCase();
   var areaNorm = normalisePreference(area);
@@ -282,33 +352,57 @@ function matchesLocationPreference(listing, searchLocation) {
   var cityNorm = normalisePreference(city);
   var name = String(listing.name || '').toLowerCase();
   var nameNorm = normalisePreference(name);
+  var pincode = listing.pincode ? String(listing.pincode).trim() : '';
 
-  // 1. Direct substring matching
-  if (area.indexOf(query) !== -1 || query.indexOf(area) !== -1 ||
+  // 1. PIN code matching
+  var pinMatch = rawQuery.match(/\b([1-9][0-9]{5})\b/);
+  if (pinMatch) {
+    var searchedPin = pinMatch[1];
+    if (pincode && pincode === searchedPin) return { match: true, relevanceScore: 1.0 };
+    if (PINCODE_MAP[searchedPin]) {
+      var targetArea = normalisePreference(PINCODE_MAP[searchedPin].area);
+      if (areaNorm.indexOf(targetArea) !== -1 || targetArea.indexOf(areaNorm) !== -1) {
+        return { match: true, relevanceScore: 1.0 };
+      }
+    }
+  }
+
+  // 2. Landmark / IT corridor resolution
+  for (var landmark in LANDMARK_MAP) {
+    if (rawQuery.indexOf(landmark) !== -1) {
+      var targetNorm = normalisePreference(LANDMARK_MAP[landmark]);
+      if (areaNorm.indexOf(targetNorm) !== -1 || targetNorm.indexOf(areaNorm) !== -1) {
+        return { match: true, relevanceScore: 0.95 };
+      }
+    }
+  }
+
+  // 3. Direct Substring matching
+  if (area.indexOf(rawQuery) !== -1 || rawQuery.indexOf(area) !== -1 ||
       (areaNorm && (areaNorm.indexOf(queryNorm) !== -1 || queryNorm.indexOf(areaNorm) !== -1))) {
-    return true;
+    return { match: true, relevanceScore: 1.0 };
   }
-  if (city.indexOf(query) !== -1 || query.indexOf(city) !== -1 ||
-      (cityNorm && (cityNorm.indexOf(queryNorm) !== -1 || queryNorm.indexOf(cityNorm) !== -1))) {
-    return true;
-  }
-  if (name.indexOf(query) !== -1 || query.indexOf(name) !== -1 ||
+  if (name.indexOf(rawQuery) !== -1 || rawQuery.indexOf(name) !== -1 ||
       (nameNorm && (nameNorm.indexOf(queryNorm) !== -1 || queryNorm.indexOf(nameNorm) !== -1))) {
-    return true;
+    return { match: true, relevanceScore: 0.95 };
+  }
+  if (city.indexOf(rawQuery) !== -1 || rawQuery.indexOf(city) !== -1 ||
+      (cityNorm && (cityNorm.indexOf(queryNorm) !== -1 || queryNorm.indexOf(cityNorm) !== -1))) {
+    return { match: true, relevanceScore: 0.85 };
   }
 
-  // 2. Tokenized word-by-word matching
-  var tokens = query.split(/[\s,.-]+/).filter(function(t) { return t.length > 2; }).map(normalisePreference);
+  // 4. Tokenized word matching
+  var tokens = rawQuery.split(/[\s,.-]+/).filter(function(t) { return t.length > 2; }).map(normalisePreference);
   for (var i = 0; i < tokens.length; i++) {
     var token = tokens[i];
-    if (areaNorm && (areaNorm.indexOf(token) !== -1 || token.indexOf(areaNorm) !== -1)) return true;
-    if (cityNorm && (cityNorm.indexOf(token) !== -1 || token.indexOf(cityNorm) !== -1)) return true;
-    if (nameNorm && (nameNorm.indexOf(token) !== -1 || token.indexOf(nameNorm) !== -1)) return true;
+    if (areaNorm && (areaNorm.indexOf(token) !== -1 || token.indexOf(areaNorm) !== -1)) return { match: true, relevanceScore: 0.9 };
+    if (cityNorm && (cityNorm.indexOf(token) !== -1 || token.indexOf(cityNorm) !== -1)) return { match: true, relevanceScore: 0.85 };
+    if (nameNorm && (nameNorm.indexOf(token) !== -1 || token.indexOf(nameNorm) !== -1)) return { match: true, relevanceScore: 0.85 };
   }
 
-  // 3. Phonetic and locality aliases
+  // 5. Phonetic & Locality Aliases
   var aliases = [
-    ['kukatpally', 'kukattepally', 'kukatpalli'],
+    ['kukatpally', 'kukattepally', 'kukatpalli', 'kphb'],
     ['madhapur', 'madhapur'],
     ['gachibowli', 'gachibowli'],
     ['hitec', 'hitech', 'hiteccity', 'cybercity'],
@@ -334,15 +428,24 @@ function matchesLocationPreference(listing, searchLocation) {
     var queryMatchesGroup = group.some(function(alias) { return queryNorm.indexOf(alias) !== -1 || alias.indexOf(queryNorm) !== -1; });
     if (queryMatchesGroup) {
       var listingMatchesGroup = group.some(function(alias) { return areaNorm.indexOf(alias) !== -1 || nameNorm.indexOf(alias) !== -1; });
-      if (listingMatchesGroup) return true;
+      if (listingMatchesGroup) return { match: true, relevanceScore: 0.9 };
     }
   }
 
-  return false;
+  // 6. Fuzzy Typo Distance (Levenshtein)
+  if (queryNorm.length >= 4 && areaNorm.length >= 4) {
+    var dist = levenshteinDistance(queryNorm, areaNorm);
+    if (dist <= 2) {
+      return { match: true, relevanceScore: 0.8 };
+    }
+  }
+
+  return { match: false, relevanceScore: 0.0 };
 }
 
 function matchesWorkplacePreference(listing, workplace) {
-  return matchesLocationPreference(listing, workplace);
+  var result = matchesLocationPreference(listing, workplace);
+  return result && result.match;
 }
 
 function getLocalRecommendations(preferences) {
@@ -367,7 +470,8 @@ function getLocalRecommendations(preferences) {
     Object.keys(ALL_LISTINGS).forEach(function(cKey) {
       if (cKey !== city) {
         (ALL_LISTINGS[cKey] || []).forEach(function(item) {
-          if (matchesLocationPreference(item, workplace)) {
+          var locEval = matchesLocationPreference(item, workplace);
+          if (locEval && locEval.match) {
             if (!pool.some(function(p) { return String(p.id) === String(item.id); })) {
               pool.push(item);
             }
@@ -390,44 +494,45 @@ function getLocalRecommendations(preferences) {
 
   if (!pool.length) return [];
 
-  // Score and filter each candidate
+  // 2. ML Multi-Factor Ranking
   var scoredCandidates = pool.map(function(listing) {
     var availAmenities = (listing.amenities || []).map(normalisePreference);
     var commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
     
-    // Check match criteria
-    var matchesLocation = matchesLocationPreference(listing, workplace);
-    var matchesType = (!propertyType || normalisePreference(listing.type) === propertyType);
+    var locEval = matchesLocationPreference(listing, workplace);
+    var isLocationMatch = locEval && locEval.match;
+    var locRelevance = (locEval && locEval.relevanceScore) || 0.0;
+
+    var isTypeMatch = (!propertyType || normalisePreference(listing.type) === propertyType);
     
-    // Soft scoring for amenities
+    // Feature 1: Location Feature (Weight: 40%)
+    var locationScore = isLocationMatch ? locRelevance * 40 : 0;
+
+    // Feature 2: Amenity Jaccard Vector (Weight: 15%)
     var matchedAmenitiesCount = requestedAmenities.filter(function (amenity) {
       return availAmenities.indexOf(amenity) !== -1;
     }).length;
-    var amenityBonus = requestedAmenities.length ? (matchedAmenitiesCount / requestedAmenities.length) * 15 : 5;
+    var amenityScore = requestedAmenities.length ? (matchedAmenitiesCount / requestedAmenities.length) * 15 : 10;
 
-    // Location bonus: if property is in the area/workplace searched, strong bonus!
-    var locationBonus = (workplaceNorm && matchesLocation) ? 35 : 0;
+    // Feature 3: Budget Elasticity Curve (Weight: 20%)
+    var budgetScore = budget ? Math.max(0, 20 - (Math.abs((listing.price || 0) - budget) / budget) * 25) : 15;
 
-    // Budget match score
-    var budgetScore = budget ? Math.max(-15, 10 - Math.abs((listing.price || 0) - budget) / budget * 15) : 5;
+    // Feature 4: Commute Decay Function (Weight: 15%)
+    var commuteScore = Math.max(0, 15 - Math.max(0, commuteMinutes - maxCommute) * 0.8);
 
-    // Commute match score
-    var commuteScore = Math.max(-10, 8 - Math.max(0, commuteMinutes - maxCommute) * 0.5);
+    // Feature 5: Property Type & Base Quality (Weight: 10%)
+    var typeScore = isTypeMatch ? 10 : 0;
 
-    // Property type match score
-    var typeScore = matchesType ? 10 : -10;
-
-    var baseScore = listing.score || 85;
-    var finalScore = Math.round(Math.max(10, Math.min(99, baseScore * 0.5 + locationBonus + amenityBonus + budgetScore + commuteScore + typeScore)));
+    var finalScore = Math.round(Math.max(10, Math.min(99, locationScore + amenityScore + budgetScore + commuteScore + typeScore)));
 
     return Object.assign({}, listing, {
       score: finalScore,
       matchedAmenities: matchedAmenitiesCount,
-      isExactLocationMatch: Boolean(workplaceNorm && matchesLocation)
+      isExactLocationMatch: Boolean(workplaceNorm && isLocationMatch)
     });
   });
 
-  // Filter for exact location matches if any workplace/area was searched
+  // Filter strictly if location was searched
   var results = workplaceNorm ? scoredCandidates.filter(function(s) { return s.isExactLocationMatch; }) : scoredCandidates;
 
   // Sort by overall score and price

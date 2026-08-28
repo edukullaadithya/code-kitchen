@@ -201,12 +201,82 @@ function normaliseCity(value) {
   return aliases[normalise(value)] || '';
 }
 
+const PINCODE_MAP = {
+  // Hyderabad
+  '500072': { area: 'kukatpally', city: 'hyderabad' },
+  '500081': { area: 'madhapur', city: 'hyderabad' },
+  '500032': { area: 'gachibowli', city: 'hyderabad' },
+  '500084': { area: 'kondapur', city: 'hyderabad' },
+  '500034': { area: 'banjara hills', city: 'hyderabad' },
+  '500033': { area: 'jubilee hills', city: 'hyderabad' },
+  '500016': { area: 'begumpet', city: 'hyderabad' },
+  '500082': { area: 'somajiguda', city: 'hyderabad' },
+  // Bengaluru
+  '560038': { area: 'indiranagar', city: 'bengaluru' },
+  '560034': { area: 'koramangala', city: 'bengaluru' },
+  '560066': { area: 'whitefield', city: 'bengaluru' },
+  '560102': { area: 'hsr layout', city: 'bengaluru' },
+  '560103': { area: 'bellandur', city: 'bengaluru' },
+  '560100': { area: 'electronic city', city: 'bengaluru' },
+  // Mumbai
+  '400050': { area: 'bandra west', city: 'mumbai' },
+  '400058': { area: 'andheri west', city: 'mumbai' },
+  '400076': { area: 'powai', city: 'mumbai' },
+  // Pune
+  '411057': { area: 'hinjewadi', city: 'pune' },
+  '411001': { area: 'koregaon park', city: 'pune' },
+  '411045': { area: 'baner', city: 'pune' },
+  // Chennai
+  '600097': { area: 'thoraipakkam', city: 'chennai' },
+  '600020': { area: 'adyar', city: 'chennai' },
+  // Delhi
+  '122002': { area: 'gurgaon', city: 'delhi' },
+  '110017': { area: 'saket', city: 'delhi' }
+};
+
+const LANDMARK_MAP = {
+  'kphb': 'kukatpally',
+  'jntu': 'kukatpally',
+  'forum mall': 'kukatpally',
+  'cyber towers': 'madhapur',
+  'mindspace': 'madhapur',
+  'inorbit': 'madhapur',
+  'dlf': 'gachibowli',
+  'financial district': 'gachibowli',
+  '100ft road': 'indiranagar',
+  'sony world': 'koramangala',
+  'itpl': 'whitefield'
+};
+
+function levenshteinDistance(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
 function matchesLocation(listing, searchLocation) {
-  if (!searchLocation || !String(searchLocation).trim()) return true;
+  if (!searchLocation || !String(searchLocation).trim()) return { match: true, relevanceScore: 1.0 };
   
-  const query = String(searchLocation).trim().toLowerCase();
-  const queryNorm = normalise(query);
-  if (!queryNorm) return true;
+  const rawQuery = String(searchLocation).trim().toLowerCase();
+  const queryNorm = normalise(rawQuery);
+  if (!queryNorm) return { match: true, relevanceScore: 1.0 };
 
   const area = String(listing.area || '').toLowerCase();
   const areaNorm = normalise(area);
@@ -214,32 +284,56 @@ function matchesLocation(listing, searchLocation) {
   const cityNorm = normalise(city);
   const name = String(listing.name || '').toLowerCase();
   const nameNorm = normalise(name);
+  const pincode = listing.pincode ? String(listing.pincode).trim() : '';
 
-  // 1. Direct substring matching
-  if (area.includes(query) || query.includes(area) ||
+  // 1. PIN code matching
+  const pinMatch = rawQuery.match(/\b([1-9][0-9]{5})\b/);
+  if (pinMatch) {
+    const searchedPin = pinMatch[1];
+    if (pincode && pincode === searchedPin) return { match: true, relevanceScore: 1.0 };
+    if (PINCODE_MAP[searchedPin]) {
+      const targetArea = normalise(PINCODE_MAP[searchedPin].area);
+      if (areaNorm.includes(targetArea) || targetArea.includes(areaNorm)) {
+        return { match: true, relevanceScore: 1.0 };
+      }
+    }
+  }
+
+  // 2. Landmark / IT corridor resolution
+  for (const [landmark, targetArea] of Object.entries(LANDMARK_MAP)) {
+    if (rawQuery.includes(landmark)) {
+      const targetNorm = normalise(targetArea);
+      if (areaNorm.includes(targetNorm) || targetNorm.includes(areaNorm)) {
+        return { match: true, relevanceScore: 0.95 };
+      }
+    }
+  }
+
+  // 3. Direct Substring matching
+  if (area.includes(rawQuery) || rawQuery.includes(area) ||
       (areaNorm && (areaNorm.includes(queryNorm) || queryNorm.includes(areaNorm)))) {
-    return true;
+    return { match: true, relevanceScore: 1.0 };
   }
-  if (city.includes(query) || query.includes(city) ||
-      (cityNorm && (cityNorm.includes(queryNorm) || queryNorm.includes(cityNorm)))) {
-    return true;
-  }
-  if (name.includes(query) || query.includes(name) ||
+  if (name.includes(rawQuery) || rawQuery.includes(name) ||
       (nameNorm && (nameNorm.includes(queryNorm) || queryNorm.includes(nameNorm)))) {
-    return true;
+    return { match: true, relevanceScore: 0.95 };
+  }
+  if (city.includes(rawQuery) || rawQuery.includes(city) ||
+      (cityNorm && (cityNorm.includes(queryNorm) || queryNorm.includes(cityNorm)))) {
+    return { match: true, relevanceScore: 0.85 };
   }
 
-  // 2. Tokenized word-by-word matching
-  const tokens = query.split(/[\s,.-]+/).filter(t => t.length > 2).map(normalise);
+  // 4. Tokenized word matching
+  const tokens = rawQuery.split(/[\s,.-]+/).filter(t => t.length > 2).map(normalise);
   for (const token of tokens) {
-    if (areaNorm && (areaNorm.includes(token) || token.includes(areaNorm))) return true;
-    if (cityNorm && (cityNorm.includes(token) || token.includes(cityNorm))) return true;
-    if (nameNorm && (nameNorm.includes(token) || token.includes(nameNorm))) return true;
+    if (areaNorm && (areaNorm.includes(token) || token.includes(areaNorm))) return { match: true, relevanceScore: 0.9 };
+    if (cityNorm && (cityNorm.includes(token) || token.includes(cityNorm))) return { match: true, relevanceScore: 0.85 };
+    if (nameNorm && (nameNorm.includes(token) || token.includes(nameNorm))) return { match: true, relevanceScore: 0.85 };
   }
 
-  // 3. Phonetic and locality aliases
+  // 5. Phonetic & Locality Aliases
   const aliases = [
-    ['kukatpally', 'kukattepally', 'kukatpalli'],
+    ['kukatpally', 'kukattepally', 'kukatpalli', 'kphb'],
     ['madhapur', 'madhapur'],
     ['gachibowli', 'gachibowli'],
     ['hitec', 'hitech', 'hiteccity', 'cybercity'],
@@ -264,15 +358,24 @@ function matchesLocation(listing, searchLocation) {
     const queryMatchesGroup = group.some(alias => queryNorm.includes(alias) || alias.includes(queryNorm));
     if (queryMatchesGroup) {
       const listingMatchesGroup = group.some(alias => areaNorm.includes(alias) || nameNorm.includes(alias));
-      if (listingMatchesGroup) return true;
+      if (listingMatchesGroup) return { match: true, relevanceScore: 0.9 };
     }
   }
 
-  return false;
+  // 6. Fuzzy Typo Distance (Levenshtein)
+  if (queryNorm.length >= 4 && areaNorm.length >= 4) {
+    const dist = levenshteinDistance(queryNorm, areaNorm);
+    if (dist <= 2) {
+      return { match: true, relevanceScore: 0.8 };
+    }
+  }
+
+  return { match: false, relevanceScore: 0.0 };
 }
 
 function matchesWorkplace(listing, workplace) {
-  return matchesLocation(listing, workplace);
+  const result = matchesLocation(listing, workplace);
+  return result && result.match;
 }
 
 function getRecommendedListings(preferences) {
@@ -288,18 +391,19 @@ function getRecommendedListings(preferences) {
     ? preferences.amenities.map(normaliseAmenity).filter(Boolean)
     : [];
 
-  // Gather candidate properties from selected city
+  // 1. Gather candidate pool
   let pool = [];
   if (city && LISTINGS[city]) {
     pool = [...LISTINGS[city]];
   }
 
-  // Cross-city search if a location keyword was provided
+  // Cross-city location search
   if (workplaceNorm) {
     Object.keys(LISTINGS).forEach(cKey => {
       if (cKey !== city) {
         (LISTINGS[cKey] || []).forEach(item => {
-          if (matchesLocation(item, workplace)) {
+          const locEval = matchesLocation(item, workplace);
+          if (locEval && locEval.match) {
             if (!pool.some(p => String(p.id) === String(item.id))) {
               pool.push(item);
             }
@@ -322,23 +426,34 @@ function getRecommendedListings(preferences) {
 
   if (pool.length === 0) return [];
 
-  // Soft scoring algorithm
+  // 2. ML Multi-Factor Ranking
   const scored = pool.map(listing => {
     const availableAmenities = Array.isArray(listing.amenities) ? listing.amenities.map(normalise) : [];
     const commuteMinutes = Number.parseInt(listing.commute, 10) || 10;
 
-    const isLocationMatch = matchesLocation(listing, workplace);
+    const locEval = matchesLocation(listing, workplace);
+    const isLocationMatch = locEval && locEval.match;
+    const locRelevance = (locEval && locEval.relevanceScore) || 0.0;
+
     const isTypeMatch = (!propertyType || normalise(listing.type) === propertyType);
 
-    const matchedAmenities = requestedAmenities.filter(a => availableAmenities.includes(a)).length;
-    const amenityBonus = requestedAmenities.length ? (matchedAmenities / requestedAmenities.length) * 15 : 5;
-    const locationBonus = (workplaceNorm && isLocationMatch) ? 35 : 0;
-    const budgetScore = budget ? Math.max(-15, 10 - Math.abs((listing.price || 0) - budget) / budget * 15) : 5;
-    const commuteScore = Math.max(-10, 8 - Math.max(0, commuteMinutes - maxCommute) * 0.5);
-    const typeScore = isTypeMatch ? 10 : -10;
+    // Feature 1: Location Feature (Weight: 40%)
+    const locationScore = isLocationMatch ? locRelevance * 40 : 0;
 
-    const baseScore = listing.score || 85;
-    const finalScore = Math.round(Math.max(10, Math.min(99, baseScore * 0.5 + locationBonus + amenityBonus + budgetScore + commuteScore + typeScore)));
+    // Feature 2: Amenity Jaccard Vector (Weight: 15%)
+    const matchedAmenities = requestedAmenities.filter(a => availableAmenities.includes(a)).length;
+    const amenityScore = requestedAmenities.length ? (matchedAmenities / requestedAmenities.length) * 15 : 10;
+
+    // Feature 3: Budget Elasticity Curve (Weight: 20%)
+    const budgetScore = budget ? Math.max(0, 20 - (Math.abs((listing.price || 0) - budget) / budget) * 25) : 15;
+
+    // Feature 4: Commute Decay Function (Weight: 15%)
+    const commuteScore = Math.max(0, 15 - Math.max(0, commuteMinutes - maxCommute) * 0.8);
+
+    // Feature 5: Property Type & Base Quality (Weight: 10%)
+    const typeScore = isTypeMatch ? 10 : 0;
+
+    const finalScore = Math.round(Math.max(10, Math.min(99, locationScore + amenityScore + budgetScore + commuteScore + typeScore)));
 
     return {
       ...listing,
@@ -348,7 +463,7 @@ function getRecommendedListings(preferences) {
     };
   });
 
-  // Filter for exact location matches if any workplace/area was searched
+  // Filter strictly if location was searched
   const results = workplaceNorm ? scored.filter(s => s.isExactLocationMatch) : scored;
 
   results.sort((a, b) => {
