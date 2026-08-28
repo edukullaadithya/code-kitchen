@@ -231,6 +231,9 @@ if (locInp) {
 }
 
 async function requestRecommendations(preferences) {
+  mergeCustomListingsIntoAll();
+  preferences.customListings = getCustomListingsFromStorage();
+
   try {
     var response = await fetch(getApiUrl('/api/recommendations'), {
       method: 'POST',
@@ -239,8 +242,15 @@ async function requestRecommendations(preferences) {
     });
     if (response.ok) {
       var data = await response.json();
-      if (data.listings && Array.isArray(data.listings) && data.listings.length > 0) {
-        return data.listings;
+      if (data.listings && Array.isArray(data.listings)) {
+        var localMatches = getLocalRecommendations(preferences);
+        var combined = data.listings.slice();
+        localMatches.forEach(function(localItem) {
+          if (!combined.some(function(x) { return String(x.id) === String(localItem.id); })) {
+            combined.unshift(localItem);
+          }
+        });
+        return combined;
       }
     }
   } catch (err) {
@@ -448,6 +458,19 @@ function matchesCombinedCityAndPlacePreference(listing, selectedCity, searchPlac
   var targetCity = normaliseCityPreference(selectedCity || '');
 
   var rawPlace = String(searchPlace || '').trim().toLowerCase();
+  var rawPlaceNorm = normalisePreference(rawPlace);
+  var listingName = String(listing.name || '').toLowerCase();
+  var listingNameNorm = normalisePreference(listingName);
+  var listingArea = String(listing.area || '').toLowerCase();
+  var listingAreaNorm = normalisePreference(listingArea);
+
+  // 1. Direct property name match (e.g. user searches "kkk" or "xyz hotel")
+  if (rawPlace && (listingName.indexOf(rawPlace) !== -1 || rawPlace.indexOf(listingName) !== -1 ||
+      (listingNameNorm && (listingNameNorm.indexOf(rawPlaceNorm) !== -1 || rawPlaceNorm.indexOf(listingNameNorm) !== -1)))) {
+    return { match: true, relevanceScore: 1.0 };
+  }
+
+  // 2. Detect city in search query (e.g. "Kukatpally, Hyderabad")
   var detectedCity = '';
   var cities = ['hyderabad', 'bengaluru', 'mumbai', 'pune', 'chennai', 'delhi'];
   for (var i = 0; i < cities.length; i++) {
@@ -460,12 +483,15 @@ function matchesCombinedCityAndPlacePreference(listing, selectedCity, searchPlac
 
   var effectiveCity = detectedCity || targetCity;
 
-  // 1. City match check: Must match the city
+  // 3. City match check: Must match the city (with area discovery if area matches directly)
   if (effectiveCity && listingCity && listingCity !== effectiveCity) {
+    if (listingAreaNorm && (listingAreaNorm.indexOf(rawPlaceNorm) !== -1 || rawPlaceNorm.indexOf(listingAreaNorm) !== -1)) {
+      return { match: true, relevanceScore: 0.95 };
+    }
     return { match: false, relevanceScore: 0 };
   }
 
-  // 2. Place/Area match check: Must match the place/area
+  // 4. Place/Area match check: Must match the place/area
   if (rawPlace) {
     var cleanPlace = rawPlace.replace(/\b(hyderabad|bengaluru|bangalore|mumbai|bombay|pune|chennai|madras|delhi|gurgaon|gurugram)\b/gi, '').trim();
     if (!cleanPlace) {

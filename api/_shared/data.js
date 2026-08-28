@@ -263,6 +263,19 @@ function matchesCombinedCityAndPlace(listing, selectedCity, searchPlace) {
   const targetCity = normaliseCity(selectedCity || '');
 
   const rawPlace = String(searchPlace || '').trim().toLowerCase();
+  const rawPlaceNorm = normalise(rawPlace);
+  const listingName = String(listing.name || '').toLowerCase();
+  const listingNameNorm = normalise(listingName);
+  const listingArea = String(listing.area || '').toLowerCase();
+  const listingAreaNorm = normalise(listingArea);
+
+  // 1. Direct property name match (e.g. user searches "kkk" or "xyz hotel")
+  if (rawPlace && (listingName.includes(rawPlace) || rawPlace.includes(listingName) ||
+      (listingNameNorm && (listingNameNorm.includes(rawPlaceNorm) || rawPlaceNorm.includes(listingNameNorm))))) {
+    return { match: true, relevanceScore: 1.0 };
+  }
+
+  // 2. Detect city in search query (e.g. "Kukatpally, Hyderabad")
   let detectedCity = '';
   const cities = ['hyderabad', 'bengaluru', 'mumbai', 'pune', 'chennai', 'delhi'];
   for (const c of cities) {
@@ -274,12 +287,15 @@ function matchesCombinedCityAndPlace(listing, selectedCity, searchPlace) {
 
   const effectiveCity = detectedCity || targetCity;
 
-  // 1. City match check: Must match the city
+  // 3. City match check: Must match the city (with area discovery if area matches directly)
   if (effectiveCity && listingCity && listingCity !== effectiveCity) {
+    if (listingAreaNorm && (listingAreaNorm.includes(rawPlaceNorm) || rawPlaceNorm.includes(listingAreaNorm))) {
+      return { match: true, relevanceScore: 0.95 };
+    }
     return { match: false, relevanceScore: 0 };
   }
 
-  // 2. Place/Area match check: Must match the place/area
+  // 4. Place/Area match check: Must match the place/area
   if (rawPlace) {
     const cleanPlace = rawPlace.replace(/\b(hyderabad|bengaluru|bangalore|mumbai|bombay|pune|chennai|madras|delhi|gurgaon|gurugram)\b/gi, '').trim();
     if (!cleanPlace) {
@@ -309,7 +325,7 @@ function getRecommendedListings(preferences) {
     ? preferences.amenities.map(normaliseAmenity).filter(Boolean)
     : [];
 
-  // 1. Gather candidate pool across all listings
+  // 1. Gather candidate pool across all listings + customListings from client
   let pool = [];
   Object.keys(LISTINGS).forEach(cKey => {
     (LISTINGS[cKey] || []).forEach(item => {
@@ -318,6 +334,14 @@ function getRecommendedListings(preferences) {
       }
     });
   });
+
+  if (Array.isArray(preferences.customListings)) {
+    preferences.customListings.forEach(item => {
+      if (!pool.some(p => String(p.id) === String(item.id))) {
+        pool.unshift(item);
+      }
+    });
+  }
 
   if (pool.length === 0) return [];
 
