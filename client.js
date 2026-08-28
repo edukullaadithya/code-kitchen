@@ -1277,16 +1277,7 @@ function getAdminSelectedAmenities() {
 function getCustomListingsFromStorage() {
   try {
     var raw = localStorage.getItem('rentright_custom_listings');
-    var list = raw ? JSON.parse(raw) : [];
-    // Automatically purge old test properties like xyz hotel
-    var cleaned = list.filter(function(item) {
-      var n = String(item.name || '').toLowerCase().trim();
-      return n !== 'xyz hotel' && n !== 'test flat' && n !== 'sample flat';
-    });
-    if (cleaned.length !== list.length) {
-      localStorage.setItem('rentright_custom_listings', JSON.stringify(cleaned));
-    }
-    return cleaned;
+    return raw ? JSON.parse(raw) : [];
   } catch (e) {
     return [];
   }
@@ -1315,16 +1306,7 @@ function mergeCustomListingsIntoAll() {
 function getCustomInquiriesFromStorage() {
   try {
     var raw = localStorage.getItem('rentright_custom_inquiries');
-    var list = raw ? JSON.parse(raw) : [];
-    // Automatically purge old test inquiries (for xyz hotel, test flat, etc.)
-    var cleaned = list.filter(function(item) {
-      var flat = String(item.listingName || '').toLowerCase().trim();
-      return flat !== 'xyz hotel' && flat !== 'test flat' && flat !== 'sample flat';
-    });
-    if (cleaned.length !== list.length) {
-      localStorage.setItem('rentright_custom_inquiries', JSON.stringify(cleaned));
-    }
-    return cleaned;
+    return raw ? JSON.parse(raw) : [];
   } catch (e) {
     return [];
   }
@@ -1494,8 +1476,6 @@ function loadAdminListings() {
   var myItems = allItems.filter(function(item) {
     var itemOwnerId = String(item.ownerId || item.userId || '').trim();
     var itemOwnerEmail = String(item.ownerEmail || '').trim().toLowerCase();
-    var flatName = String(item.name || '').toLowerCase().trim();
-    if (flatName === 'xyz hotel') return false;
 
     if (currentAdminId && itemOwnerId && itemOwnerId === currentAdminId) return true;
     if (currentAdminEmail && itemOwnerEmail && itemOwnerEmail === currentAdminEmail) return true;
@@ -1672,8 +1652,7 @@ async function loadAdminInquiries() {
   // Merge ONLY local inquiries strictly belonging to this admin's email
   var localInqs = getCustomInquiriesFromStorage().filter(function(i) {
     var inqOwner = String(i.ownerEmail || '').trim().toLowerCase();
-    var flat = String(i.listingName || '').toLowerCase().trim();
-    return inqOwner === currentAdminEmail && flat !== 'xyz hotel' && flat !== 'test flat';
+    return inqOwner === currentAdminEmail;
   });
 
   localInqs.forEach(function(li) {
@@ -1685,8 +1664,7 @@ async function loadAdminInquiries() {
   // Strict filter on final inquiries list
   inquiries = inquiries.filter(function(inq) {
     var inqOwner = String(inq.ownerEmail || '').trim().toLowerCase();
-    var flat = String(inq.listingName || '').toLowerCase().trim();
-    return inqOwner === currentAdminEmail && flat !== 'xyz hotel' && flat !== 'test flat';
+    return inqOwner === currentAdminEmail;
   });
 
   if (countEl) countEl.textContent = inquiries.length;
