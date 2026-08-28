@@ -3,6 +3,16 @@
   "framework": null,
   "buildCommand": "",
   "outputDirectory": ".",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate, max-age=0" },
+        { "key": "Pragma", "value": "no-cache" },
+        { "key": "Expires", "value": "0" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/auth/:action", "destination": "/api/auth/[action]" },
     { "source": "/api/listings/:id", "destination": "/api/listings/[id]" },
