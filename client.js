@@ -220,6 +220,16 @@ function getSearchPreferences() {
   };
 }
 
+var locInp = document.getElementById('location-input');
+if (locInp) {
+  locInp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      startAISearch();
+    }
+  });
+}
+
 async function requestRecommendations(preferences) {
   try {
     var response = await fetch(getApiUrl('/api/recommendations'), {
@@ -430,6 +440,27 @@ function getLocalRecommendations(preferences) {
 
 function startAISearch() {
   if (analysisInProgress) return;
+
+  var locationInput = document.getElementById('location-input');
+  var locationVal = locationInput ? locationInput.value.trim() : '';
+
+  // Validation: Analysis/search must not start until the user provides the required input
+  if (!locationVal) {
+    if (locationInput) {
+      locationInput.focus();
+      locationInput.style.borderColor = 'var(--accent-primary, #6366f1)';
+      locationInput.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.25)';
+      setTimeout(function() {
+        if (locationInput) {
+          locationInput.style.borderColor = '';
+          locationInput.style.boxShadow = '';
+        }
+      }, 2500);
+    }
+    alert('Please enter your preferred location or area (e.g. Kukatpally, Madhapur, Indiranagar) to start searching.');
+    return;
+  }
+
   analysisInProgress = true;
 
   var overlay = document.getElementById('ai-overlay');
