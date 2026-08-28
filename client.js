@@ -1549,6 +1549,36 @@ function getCustomListingsFromStorage() {
   }
 }
 
+// ===== CROSS-TAB & CROSS-WINDOW SYNCHRONIZATION =====
+var catalogBroadcast = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('rentright_catalog_sync') : null;
+if (catalogBroadcast) {
+  catalogBroadcast.onmessage = function(event) {
+    if (event.data && (event.data.type === 'NEW_LISTING' || event.data.type === 'CATALOG_UPDATE')) {
+      mergeCustomListingsIntoAll();
+      if (currentViewMode === 'admin') {
+        loadAdminListings();
+      }
+    }
+  };
+}
+
+window.addEventListener('storage', function(e) {
+  if (e.key === 'rentright_custom_listings') {
+    mergeCustomListingsIntoAll();
+    if (currentViewMode === 'admin') {
+      loadAdminListings();
+    }
+  }
+});
+
+function broadcastCatalogUpdate(listing) {
+  if (catalogBroadcast) {
+    try {
+      catalogBroadcast.postMessage({ type: 'NEW_LISTING', listing: listing });
+    } catch(e) {}
+  }
+}
+
 function saveCustomListingsToStorage(list) {
   try {
     localStorage.setItem('rentright_custom_listings', JSON.stringify(list));
@@ -1665,6 +1695,9 @@ async function handleAddNewProperty(event) {
   if (!existsInMem) {
     ALL_LISTINGS[cityKey].unshift(listingPayload);
   }
+
+  // 3. Broadcast to all open user tabs/windows immediately
+  broadcastCatalogUpdate(listingPayload);
 
   alert("Property published successfully!");
   document.getElementById('add-property-form').reset();

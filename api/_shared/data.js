@@ -3,14 +3,49 @@ const path = require('path');
 const crypto = require('crypto');
 const vm = require('vm');
 
-// ===== LOAD LISTINGS FROM app.js =====
+// ===== LOAD LISTINGS FROM app.js & DISK STORE =====
+const TMP_LISTINGS_FILE = process.platform === 'win32'
+  ? path.join(__dirname, '..', '..', 'listings.json')
+  : path.join('/tmp', 'listings_store.json');
+
+function saveListingToDisk(listing) {
+  try {
+    let custom = [];
+    if (fs.existsSync(TMP_LISTINGS_FILE)) {
+      custom = JSON.parse(fs.readFileSync(TMP_LISTINGS_FILE, 'utf8'));
+    }
+    if (!custom.some(c => String(c.id) === String(listing.id))) {
+      custom.unshift(listing);
+      fs.writeFileSync(TMP_LISTINGS_FILE, JSON.stringify(custom, null, 2), 'utf8');
+    }
+  } catch(e) {}
+}
+
+function loadDiskListings() {
+  try {
+    if (fs.existsSync(TMP_LISTINGS_FILE)) {
+      return JSON.parse(fs.readFileSync(TMP_LISTINGS_FILE, 'utf8'));
+    }
+  } catch(e) {}
+  return [];
+}
+
 function loadListings() {
   try {
     const appJsPath = path.join(__dirname, '..', '..', 'client.js');
     const source = fs.readFileSync(appJsPath, 'utf8');
     const match = source.match(/var ALL_LISTINGS = ([\s\S]*?);\r?\n\r?\nvar currentListings/);
     if (!match) throw new Error('Could not parse listings from app.js');
-    return vm.runInNewContext(`(${match[1]})`);
+    const base = vm.runInNewContext(`(${match[1]})`);
+    const custom = loadDiskListings();
+    custom.forEach(item => {
+      const c = normaliseCity(item.city || 'hyderabad');
+      if (!base[c]) base[c] = [];
+      if (!base[c].some(p => String(p.id) === String(item.id))) {
+        base[c].unshift(item);
+      }
+    });
+    return base;
   } catch (err) {
     console.error('Failed to load listings:', err.message);
     return {};
@@ -419,5 +454,7 @@ module.exports = {
   matchesWorkplace,
   getRecommendedListings,
   getSessionUser,
-  setCorsHeaders
+  setCorsHeaders,
+  saveListingToDisk,
+  loadDiskListings
 };
