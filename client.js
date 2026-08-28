@@ -1603,12 +1603,19 @@ async function handleAddNewProperty(event) {
 
   // 1. Immediately persist to localStorage
   var custom = getCustomListingsFromStorage();
-  custom.unshift(listingPayload);
-  saveCustomListingsToStorage(custom);
+  var existsInCustom = custom.some(function(c) { return String(c.id) === String(listingPayload.id); });
+  if (!existsInCustom) {
+    custom.unshift(listingPayload);
+    saveCustomListingsToStorage(custom);
+  }
 
   // 2. Put into in-memory ALL_LISTINGS
-  if (!ALL_LISTINGS[city]) ALL_LISTINGS[city] = [];
-  ALL_LISTINGS[city].unshift(listingPayload);
+  var cityKey = (city || 'hyderabad').toLowerCase();
+  if (!ALL_LISTINGS[cityKey]) ALL_LISTINGS[cityKey] = [];
+  var existsInMem = ALL_LISTINGS[cityKey].some(function(c) { return String(c.id) === String(listingPayload.id); });
+  if (!existsInMem) {
+    ALL_LISTINGS[cityKey].unshift(listingPayload);
+  }
 
   alert("Property published successfully!");
   document.getElementById('add-property-form').reset();
@@ -1632,20 +1639,22 @@ async function handleAddNewProperty(event) {
 
 async function fetchAndUpdateLocalListings() {
   try {
-    var currentEmail = getCurrentUserEmail();
-    var currentUserId = (authState.user && authState.user.id) ? String(authState.user.id).trim() : '';
-    var url = getApiUrl('/api/listings');
-    if (currentUserId || currentEmail) {
-      url += '?mine=true&ownerId=' + encodeURIComponent(currentUserId) + '&ownerEmail=' + encodeURIComponent(currentEmail);
-    }
-    var response = await fetch(url, {
-      headers: {
-        'Authorization': 'Bearer ' + (authState.token || '')
+    var response = await fetch(getApiUrl('/api/listings'));
+    if (response.ok) {
+      var data = await response.json();
+      if (data && data.listings) {
+        Object.keys(data.listings).forEach(function(c) {
+          if (!ALL_LISTINGS[c]) ALL_LISTINGS[c] = [];
+          data.listings[c].forEach(function(serverItem) {
+            var exists = ALL_LISTINGS[c].some(function(localItem) {
+              return String(localItem.id) === String(serverItem.id);
+            });
+            if (!exists) {
+              ALL_LISTINGS[c].push(serverItem);
+            }
+          });
+        });
       }
-    });
-    var data = await response.json();
-    if (data.listings) {
-      ALL_LISTINGS = data.listings;
     }
   } catch(e) {
     console.error("Failed updating list from server.", e);
