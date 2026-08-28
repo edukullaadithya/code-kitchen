@@ -18,52 +18,8 @@ var activeMapInstance = null;
 
 // ===== MULTI-CITY LISTINGS DATA =====
 var ALL_LISTINGS = {
-  "bengaluru": [
-    {
-      id: 1001,
-      name: "Greenwood Residency",
-      area: "Indiranagar",
-      city: "bengaluru",
-      price: 28000,
-      type: "2BHK",
-      commute: "15 min",
-      distance: "3.2 km",
-      ownerEmail: "edukullaadithya08@gmail.com",
-      ownerId: "usr_admin",
-      scores: { rent: 85, distance: 88, transport: 90, safety: 92, amenities: 80, reviews: 85 },
-      score: 89,
-      tags: ["🛋️ 2BHK", "📍 Indiranagar", "⭐ High Safety"],
-      amenities: ["wifi", "lift", "parking", "247security"],
-      icon: "🏢",
-      color: "#6366f1",
-      lat: 12.9716,
-      lng: 77.5946,
-      reviews: []
-    }
-  ],
-  "mumbai": [
-    {
-      id: 1002,
-      name: "Sea View Haven",
-      area: "Bandra West",
-      city: "mumbai",
-      price: 55000,
-      type: "2BHK",
-      commute: "20 min",
-      distance: "4.5 km",
-      ownerEmail: "edukullaadithya08@gmail.com",
-      ownerId: "usr_admin",
-      scores: { rent: 75, distance: 82, transport: 88, safety: 95, amenities: 85, reviews: 90 },
-      score: 88,
-      tags: ["🛋️ 2BHK", "📍 Bandra West", "🌊 Sea View"],
-      amenities: ["wifi", "gym", "247security", "parking"],
-      icon: "🏢",
-      color: "#06b6d4",
-      lat: 19.0596,
-      lng: 72.8295,
-      reviews: []
-    }
-  ],
+  "bengaluru": [],
+  "mumbai": [],
   "hyderabad": [
     {
       id: 1003,
@@ -84,27 +40,6 @@ var ALL_LISTINGS = {
       color: "#10b981",
       lat: 17.4875,
       lng: 78.3953,
-      reviews: []
-    },
-    {
-      id: 1004,
-      name: "HKS Luxury Flats",
-      area: "Madhapur",
-      city: "hyderabad",
-      price: 26000,
-      type: "3BHK",
-      commute: "12 min",
-      distance: "2.8 km",
-      ownerEmail: "edukullaadithya08@gmail.com",
-      ownerId: "usr_admin",
-      scores: { rent: 85, distance: 90, transport: 88, safety: 90, amenities: 90, reviews: 92 },
-      score: 90,
-      tags: ["🛋️ 3BHK", "📍 Madhapur", "💼 IT Corridor"],
-      amenities: ["wifi", "gym", "swimmingpool", "247security"],
-      icon: "🏢",
-      color: "#8b5cf6",
-      lat: 17.4483,
-      lng: 78.3915,
       reviews: []
     }
   ],
