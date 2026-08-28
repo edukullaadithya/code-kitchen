@@ -8,13 +8,24 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
+  <script>
+    (function() {
+      var LATEST_VER = "v_20260828_03";
+      if (localStorage.getItem("rr_version") !== LATEST_VER) {
+        localStorage.setItem("rr_version", LATEST_VER);
+        if (!window.location.search.includes(LATEST_VER)) {
+          window.location.replace(window.location.pathname + "?v=" + LATEST_VER);
+        }
+      }
+    })();
+  </script>
   <!-- Fonts: non-blocking async load so page never waits -->
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" media="print" onload="this.media='all'" />
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" /></noscript>
-  <link rel="stylesheet" href="style.css?v=2.1" />
+  <link rel="stylesheet" href="style.css?v=20260828_03" />
 </head>
 <body>
 
