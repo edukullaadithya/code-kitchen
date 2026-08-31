@@ -76,6 +76,102 @@ function deleteListingFromDisk(id) {
   } catch(e) {}
 }
 
+// ===== USERS STORE =====
+const TMP_USERS_FILE = process.platform === 'win32'
+  ? path.join(__dirname, '..', '..', 'users.json')
+  : path.join('/tmp', 'users_store.json');
+
+function loadDiskUsers() {
+  try {
+    if (fs.existsSync(TMP_USERS_FILE)) {
+      return JSON.parse(fs.readFileSync(TMP_USERS_FILE, 'utf8'));
+    }
+  } catch(e) {}
+  return [];
+}
+
+function saveUserToDisk(user) {
+  try {
+    let list = loadDiskUsers();
+    const idx = list.findIndex(u => String(u.id) === String(user.id) || (u.email && user.email && u.email.toLowerCase() === user.email.toLowerCase()));
+    if (idx !== -1) {
+      list[idx] = Object.assign({}, list[idx], user);
+    } else {
+      list.push(user);
+    }
+    fs.writeFileSync(TMP_USERS_FILE, JSON.stringify(list, null, 2), 'utf8');
+  } catch(e) {}
+}
+
+function updateUserOnDisk(id, fields) {
+  try {
+    let list = loadDiskUsers();
+    const idx = list.findIndex(u => String(u.id) === String(id) || (u.email && fields.email && u.email.toLowerCase() === fields.email.toLowerCase()));
+    if (idx !== -1) {
+      list[idx] = Object.assign({}, list[idx], fields);
+      fs.writeFileSync(TMP_USERS_FILE, JSON.stringify(list, null, 2), 'utf8');
+      return list[idx];
+    }
+  } catch(e) {}
+  return null;
+}
+
+function deleteUserFromDisk(id) {
+  try {
+    let list = loadDiskUsers();
+    list = list.filter(u => String(u.id) !== String(id));
+    fs.writeFileSync(TMP_USERS_FILE, JSON.stringify(list, null, 2), 'utf8');
+  } catch(e) {}
+}
+
+// ===== INQUIRIES STORE =====
+const TMP_INQUIRIES_FILE = process.platform === 'win32'
+  ? path.join(__dirname, '..', '..', 'inquiries.json')
+  : path.join('/tmp', 'inquiries_store.json');
+
+function loadDiskInquiries() {
+  try {
+    if (fs.existsSync(TMP_INQUIRIES_FILE)) {
+      return JSON.parse(fs.readFileSync(TMP_INQUIRIES_FILE, 'utf8'));
+    }
+  } catch(e) {}
+  return [];
+}
+
+function saveInquiryToDisk(inq) {
+  try {
+    let list = loadDiskInquiries();
+    const idx = list.findIndex(i => String(i.id) === String(inq.id));
+    if (idx !== -1) {
+      list[idx] = Object.assign({}, list[idx], inq);
+    } else {
+      list.unshift(inq);
+    }
+    fs.writeFileSync(TMP_INQUIRIES_FILE, JSON.stringify(list, null, 2), 'utf8');
+  } catch(e) {}
+}
+
+function updateInquiryOnDisk(id, fields) {
+  try {
+    let list = loadDiskInquiries();
+    const idx = list.findIndex(i => String(i.id) === String(id));
+    if (idx !== -1) {
+      list[idx] = Object.assign({}, list[idx], fields);
+      fs.writeFileSync(TMP_INQUIRIES_FILE, JSON.stringify(list, null, 2), 'utf8');
+      return list[idx];
+    }
+  } catch(e) {}
+  return null;
+}
+
+function deleteInquiryFromDisk(id) {
+  try {
+    let list = loadDiskInquiries();
+    list = list.filter(i => String(i.id) !== String(id));
+    fs.writeFileSync(TMP_INQUIRIES_FILE, JSON.stringify(list, null, 2), 'utf8');
+  } catch(e) {}
+}
+
 // ===== FAVORITES STORE =====
 const TMP_FAVORITES_FILE = process.platform === 'win32'
   ? path.join(__dirname, '..', '..', 'favorites.json')
@@ -551,5 +647,13 @@ module.exports = {
   loadDiskListings,
   saveFavoriteToDisk,
   removeFavoriteFromDisk,
-  loadDiskFavorites
+  loadDiskFavorites,
+  saveUserToDisk,
+  updateUserOnDisk,
+  deleteUserFromDisk,
+  loadDiskUsers,
+  saveInquiryToDisk,
+  updateInquiryOnDisk,
+  deleteInquiryFromDisk,
+  loadDiskInquiries
 };

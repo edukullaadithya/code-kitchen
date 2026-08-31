@@ -21,6 +21,9 @@
     { "source": "/api/favorites", "destination": "/api/favorites" },
     { "source": "/api/upload", "destination": "/api/upload" },
     { "source": "/api/notifications/email", "destination": "/api/notifications/email" },
+    { "source": "/api/admin/users/:id", "destination": "/api/admin/users/[id]" },
+    { "source": "/api/admin/users", "destination": "/api/admin/users" },
+    { "source": "/api/admin/analytics", "destination": "/api/admin/analytics" },
     { "source": "/runtime-config.js", "destination": "/api/runtime-config" },
     { "source": "/login", "destination": "/login.html" },
     { "source": "/", "destination": "/login.html" }

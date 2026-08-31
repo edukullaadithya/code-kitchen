@@ -4,19 +4,12 @@ const path = require('path');
 async function testPriority1APIs() {
   console.log('--- TESTING PRIORITY 1 APIS FOR RENTRIGHT ---\n');
 
-  // Test 1: Property Update API (PUT /api/listings/:id)
-  console.log('[Test 1] Property Update (PUT /api/listings/:id)');
+  // Test 1: Property Create & Update API (POST /api/listings and PUT /api/listings/:id)
+  console.log('[Test 1] Property Create & Update (POST /api/listings & PUT /api/listings/:id)');
+  const listingsHandler = require('../api/listings.js');
   const updateListingHandler = require('../api/listings/[id].js');
   const { LISTINGS } = require('../api/_shared/data');
 
-  // Dynamically find a valid property ID from existing dataset
-  let testPropId = 1003;
-  for (const city of Object.keys(LISTINGS)) {
-    if (LISTINGS[city] && LISTINGS[city].length > 0) {
-      testPropId = LISTINGS[city][0].id;
-      break;
-    }
-  }
   let mockResBody = null;
   let mockStatusCode = 200;
 
@@ -30,6 +23,23 @@ async function testPriority1APIs() {
       };
     }
   };
+
+  // Create a listing first
+  const createReq = {
+    method: 'POST',
+    headers: {},
+    body: {
+      name: 'Grand Cyber Villa',
+      city: 'hyderabad',
+      area: 'Madhapur',
+      price: 85000,
+      type: '3BHK',
+      ownerEmail: 'adithya@rentright.com'
+    }
+  };
+  await listingsHandler(createReq, mockRes);
+  assert.strictEqual(mockStatusCode, 201);
+  const testPropId = mockResBody.listing.id;
 
   const updateReq = {
     method: 'PUT',
@@ -45,7 +55,7 @@ async function testPriority1APIs() {
   assert.strictEqual(mockStatusCode, 200, 'PUT /api/listings/:id should return 200');
   assert.strictEqual(mockResBody.success, true, 'Response should indicate success');
   assert.strictEqual(mockResBody.listing.price, 95000, 'Price should be updated to 95000');
-  console.log(`✓ Successfully updated listing ${testPropId} price to ₹95,000`);
+  console.log(`✓ Successfully created and updated listing ${testPropId} price to ₹95,000`);
 
   // Test 2: Saved Favorites API (POST, GET, DELETE /api/favorites)
   console.log('\n[Test 2] Saved Favorites API (/api/favorites)');
