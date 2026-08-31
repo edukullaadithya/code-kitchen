@@ -17,6 +17,10 @@
     { "source": "/api/auth/:action", "destination": "/api/auth/[action]" },
     { "source": "/api/listings/:id", "destination": "/api/listings/[id]" },
     { "source": "/api/inquiries/:id", "destination": "/api/inquiries/[id]" },
+    { "source": "/api/favorites/:id", "destination": "/api/favorites/[id]" },
+    { "source": "/api/favorites", "destination": "/api/favorites" },
+    { "source": "/api/upload", "destination": "/api/upload" },
+    { "source": "/api/notifications/email", "destination": "/api/notifications/email" },
     { "source": "/runtime-config.js", "destination": "/api/runtime-config" },
     { "source": "/login", "destination": "/login.html" },
     { "source": "/", "destination": "/login.html" }

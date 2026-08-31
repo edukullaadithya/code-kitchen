@@ -3,6 +3,32 @@ const path = require('path');
 const crypto = require('crypto');
 const vm = require('vm');
 
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(password + '_rentright_salt').digest('hex');
+}
+
+function normalise(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function normaliseAmenity(value) {
+  const aliases = { pet: 'petfriendly', security: '247security', power: 'powerbackup' };
+  const key = normalise(value);
+  return aliases[key] || key;
+}
+
+function normaliseCity(value) {
+  const raw = String(value || '').toLowerCase().trim();
+  if (raw.includes('hyd') || raw.includes('telangana')) return 'hyderabad';
+  if (raw.includes('bang') || raw.includes('beng') || raw.includes('karnataka')) return 'bangalore';
+  if (raw.includes('mum') || raw.includes('bombay') || raw.includes('maharashtra')) return 'mumbai';
+  if (raw.includes('del') || raw.includes('ncr') || raw.includes('gurgaon') || raw.includes('noida')) return 'delhi';
+  if (raw.includes('chen') || raw.includes('madras') || raw.includes('tamil')) return 'chennai';
+  if (raw.includes('kol') || raw.includes('calcutta') || raw.includes('bengal')) return 'kolkata';
+  if (raw.includes('pune')) return 'pune';
+  return 'hyderabad';
+}
+
 // ===== LOAD LISTINGS FROM app.js & DISK STORE =====
 const TMP_LISTINGS_FILE = process.platform === 'win32'
   ? path.join(__dirname, '..', '..', 'listings.json')
@@ -14,10 +40,71 @@ function saveListingToDisk(listing) {
     if (fs.existsSync(TMP_LISTINGS_FILE)) {
       custom = JSON.parse(fs.readFileSync(TMP_LISTINGS_FILE, 'utf8'));
     }
-    if (!custom.some(c => String(c.id) === String(listing.id))) {
+    const idx = custom.findIndex(c => String(c.id) === String(listing.id));
+    if (idx !== -1) {
+      custom[idx] = Object.assign({}, custom[idx], listing);
+    } else {
       custom.unshift(listing);
+    }
+    fs.writeFileSync(TMP_LISTINGS_FILE, JSON.stringify(custom, null, 2), 'utf8');
+  } catch(e) {}
+}
+
+function updateListingOnDisk(id, updatedFields) {
+  try {
+    let custom = [];
+    if (fs.existsSync(TMP_LISTINGS_FILE)) {
+      custom = JSON.parse(fs.readFileSync(TMP_LISTINGS_FILE, 'utf8'));
+    }
+    const idx = custom.findIndex(c => String(c.id) === String(id));
+    if (idx !== -1) {
+      custom[idx] = Object.assign({}, custom[idx], updatedFields);
+      fs.writeFileSync(TMP_LISTINGS_FILE, JSON.stringify(custom, null, 2), 'utf8');
+      return custom[idx];
+    }
+  } catch(e) {}
+  return null;
+}
+
+function deleteListingFromDisk(id) {
+  try {
+    if (fs.existsSync(TMP_LISTINGS_FILE)) {
+      let custom = JSON.parse(fs.readFileSync(TMP_LISTINGS_FILE, 'utf8'));
+      custom = custom.filter(c => String(c.id) !== String(id));
       fs.writeFileSync(TMP_LISTINGS_FILE, JSON.stringify(custom, null, 2), 'utf8');
     }
+  } catch(e) {}
+}
+
+// ===== FAVORITES STORE =====
+const TMP_FAVORITES_FILE = process.platform === 'win32'
+  ? path.join(__dirname, '..', '..', 'favorites.json')
+  : path.join('/tmp', 'favorites_store.json');
+
+function loadDiskFavorites() {
+  try {
+    if (fs.existsSync(TMP_FAVORITES_FILE)) {
+      return JSON.parse(fs.readFileSync(TMP_FAVORITES_FILE, 'utf8'));
+    }
+  } catch(e) {}
+  return [];
+}
+
+function saveFavoriteToDisk(fav) {
+  try {
+    let list = loadDiskFavorites();
+    if (!list.some(f => String(f.id) === String(fav.id) && String(f.userId) === String(fav.userId))) {
+      list.unshift(fav);
+      fs.writeFileSync(TMP_FAVORITES_FILE, JSON.stringify(list, null, 2), 'utf8');
+    }
+  } catch(e) {}
+}
+
+function removeFavoriteFromDisk(listingId, userId) {
+  try {
+    let list = loadDiskFavorites();
+    list = list.filter(f => !(String(f.listingId || f.id) === String(listingId) && (!userId || String(f.userId) === String(userId))));
+    fs.writeFileSync(TMP_FAVORITES_FILE, JSON.stringify(list, null, 2), 'utf8');
   } catch(e) {}
 }
 
@@ -30,12 +117,14 @@ function loadDiskListings() {
   return [];
 }
 
+let FAVORITES = loadDiskFavorites();
+
 function loadListings() {
   try {
     const appJsPath = path.join(__dirname, '..', '..', 'client.js');
     const source = fs.readFileSync(appJsPath, 'utf8');
-    const match = source.match(/var ALL_LISTINGS = ([\s\S]*?);\r?\n\r?\nvar currentListings/);
-    if (!match) throw new Error('Could not parse listings from app.js');
+    const match = source.match(/var ALL_LISTINGS = ([\s\S]*?);\s*var currentListings/);
+    if (!match) throw new Error('Could not parse listings from client.js');
     const base = vm.runInNewContext(`(${match[1]})`);
     const custom = loadDiskListings();
     custom.forEach(item => {
@@ -436,7 +525,7 @@ function getSessionUser(req) {
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Cache-Control', 'no-store');
 }
@@ -445,6 +534,7 @@ module.exports = {
   LISTINGS,
   USERS,
   INQUIRIES,
+  FAVORITES,
   SESSIONS,
   hashPassword,
   normalise,
@@ -456,5 +546,10 @@ module.exports = {
   getSessionUser,
   setCorsHeaders,
   saveListingToDisk,
-  loadDiskListings
+  updateListingOnDisk,
+  deleteListingFromDisk,
+  loadDiskListings,
+  saveFavoriteToDisk,
+  removeFavoriteFromDisk,
+  loadDiskFavorites
 };
