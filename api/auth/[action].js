@@ -4,7 +4,12 @@ const crypto = require('crypto');
 module.exports = async function(req, res) {
   setCorsHeaders(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
-  const action = req.query.action;
+
+  let action = (req.query && req.query.action) || '';
+  if (!action && req.url) {
+    const cleanUrl = req.url.split('?')[0].replace(/\/$/, '');
+    action = cleanUrl.split('/').pop();
+  }
 
   // Sync users from disk
   const diskUsers = loadDiskUsers();

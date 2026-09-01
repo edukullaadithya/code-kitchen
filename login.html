@@ -1235,7 +1235,7 @@
           <div class="form-group-field">
             <div class="label-row">
               <label class="input-section-label">PASSWORD</label>
-              <a href="forgot-password.html" class="forgot-link" onclick="handleForgotPassword(event)">Forgot Password?</a>
+              <a href="forgot-password.html" target="_blank" class="forgot-link" onclick="handleForgotPassword(event)">Forgot Password?</a>
             </div>
             <div class="input-icon-wrapper">
               <div class="input-prefix-icon">
@@ -1434,7 +1434,10 @@
       if (event) event.preventDefault();
       var currentEmail = document.getElementById('login-email').value.trim();
       var targetUrl = 'forgot-password.html' + (currentEmail ? ('?email=' + encodeURIComponent(currentEmail)) : '');
-      window.location.href = targetUrl;
+      var newWin = window.open(targetUrl, '_blank');
+      if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+        window.location.href = targetUrl;
+      }
     }
 
     async function handleRequestOtp() {

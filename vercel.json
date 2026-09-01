@@ -29,9 +29,12 @@
     { "source": "/api/admin/users", "destination": "/api/admin/users" },
     { "source": "/api/admin/analytics", "destination": "/api/admin/analytics" },
     { "source": "/runtime-config.js", "destination": "/api/runtime-config" },
+    { "source": "/forgot-password.html", "destination": "/forgot-password.html" },
     { "source": "/forgot-password", "destination": "/forgot-password.html" },
     { "source": "/reset-password", "destination": "/forgot-password.html" },
+    { "source": "/login.html", "destination": "/login.html" },
     { "source": "/login", "destination": "/login.html" },
+    { "source": "/index.html", "destination": "/index.html" },
     { "source": "/", "destination": "/login.html" }
   ]
 }
