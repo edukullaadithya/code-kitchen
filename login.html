@@ -635,6 +635,98 @@
       text-decoration: underline;
     }
 
+    /* Modal Backdrop & Container */
+    .rr-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 4, 10, 0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .rr-modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .rr-modal-card {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      border-radius: 24px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 40px rgba(168, 85, 247, 0.15);
+      width: 100%;
+      max-width: 480px;
+      padding: 2.2rem;
+      position: relative;
+      transform: scale(0.95) translateY(10px);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .rr-modal-backdrop.active .rr-modal-card {
+      transform: scale(1) translateY(0);
+    }
+
+    .rr-modal-close {
+      position: absolute;
+      top: 1.2rem;
+      right: 1.2rem;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: all 0.2s;
+    }
+
+    .rr-modal-close:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .rr-step-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .rr-step-dot {
+      flex: 1;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      transition: all 0.3s;
+    }
+
+    .rr-step-dot.active {
+      background: linear-gradient(90deg, #7c3aed, #a855f7);
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+    }
+
+    .otp-input-box {
+      letter-spacing: 0.5em;
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+      font-family: monospace;
+      color: #38bdf8 !important;
+    }
+
     .input-icon-wrapper {
       position: relative;
       display: flex;
@@ -1194,19 +1286,241 @@
         </div>
 
       </div>
-    </div>
 
+  <!-- PASSWORD RESET & OTP RECOVERY MODAL -->
+  <div id="forgot-modal-backdrop" class="rr-modal-backdrop" onclick="if(event.target === this) closeForgotPasswordModal()">
+    <div class="rr-modal-card">
+      <button type="button" class="rr-modal-close" onclick="closeForgotPasswordModal()">&times;</button>
+      
+      <!-- Step Dots -->
+      <div class="rr-step-indicator">
+        <div id="step-dot-1" class="rr-step-dot active"></div>
+        <div id="step-dot-2" class="rr-step-dot"></div>
+        <div id="step-dot-3" class="rr-step-dot"></div>
+      </div>
+
+      <!-- STEP 1: REQUEST OTP -->
+      <div id="reset-step-1">
+        <div style="font-size:1.4rem; font-weight:800; color:#f8fafc; margin-bottom:0.4rem;">
+          Reset <span style="background:linear-gradient(135deg, #c084fc, #38bdf8); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Password</span>
+        </div>
+        <p style="color:#94a3b8; font-size:0.88rem; margin-bottom:1.5rem; line-height:1.4;">
+          Enter your registered email address. We'll send a 6-digit one-time verification code (OTP).
+        </p>
+
+        <div id="modal-alert-1" style="display:none; padding:0.75rem 1rem; border-radius:12px; font-size:0.85rem; margin-bottom:1rem;"></div>
+
+        <div class="form-group-custom">
+          <label class="input-section-label">REGISTERED EMAIL</label>
+          <div class="input-icon-wrapper">
+            <div class="input-prefix-icon">
+              <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <input type="email" id="reset-email-input" class="custom-auth-input" placeholder="name@example.com" />
+          </div>
+        </div>
+
+        <button type="button" id="send-otp-btn" class="auth-submit-btn" style="margin-top:1.2rem;" onclick="handleRequestOtp()">
+          <span>Send Verification Code (OTP)</span>
+          <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </div>
+
+      <!-- STEP 2: VERIFY OTP & ENTER NEW PASSWORD -->
+      <div id="reset-step-2" style="display:none;">
+        <div style="font-size:1.4rem; font-weight:800; color:#f8fafc; margin-bottom:0.4rem;">
+          Verify &amp; <span style="background:linear-gradient(135deg, #c084fc, #38bdf8); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Set Password</span>
+        </div>
+        <p style="color:#94a3b8; font-size:0.88rem; margin-bottom:1.2rem; line-height:1.4;">
+          Enter the 6-digit OTP code sent to <strong id="display-target-email" style="color:#38bdf8;"></strong> and choose a new password.
+        </p>
+
+        <div id="modal-alert-2" style="display:none; padding:0.75rem 1rem; border-radius:12px; font-size:0.85rem; margin-bottom:1rem;"></div>
+
+        <div class="form-group-custom">
+          <label class="input-section-label">6-DIGIT OTP CODE</label>
+          <input type="text" id="reset-otp-input" class="custom-auth-input otp-input-box" placeholder="••••••" maxlength="6" />
+        </div>
+
+        <div class="form-group-custom" style="margin-top:1rem;">
+          <label class="input-section-label">NEW PASSWORD (MIN 6 CHARACTERS)</label>
+          <div class="input-icon-wrapper">
+            <div class="input-prefix-icon">
+              <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <input type="password" id="reset-new-password" class="custom-auth-input" placeholder="Create strong new password" />
+          </div>
+        </div>
+
+        <button type="button" id="confirm-reset-btn" class="auth-submit-btn" style="margin-top:1.2rem;" onclick="handleVerifyAndResetPassword()">
+          <span>Verify &amp; Reset Password</span>
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+
+        <div style="text-align:center; margin-top:1rem;">
+          <a href="#" style="font-size:0.82rem; color:#94a3b8; text-decoration:none;" onclick="showStep(1); return false;">← Resend or change email</a>
+        </div>
+      </div>
+
+      <!-- STEP 3: SUCCESS CONFIRMATION -->
+      <div id="reset-step-3" style="display:none; text-align:center; padding:1rem 0;">
+        <div style="width:64px; height:64px; border-radius:50%; background:rgba(16, 185, 129, 0.2); border:2px solid #10b981; color:#10b981; display:flex; align-items:center; justify-content:center; font-size:2rem; margin:0 auto 1.2rem auto;">
+          ✓
+        </div>
+        <div style="font-size:1.4rem; font-weight:800; color:#f8fafc; margin-bottom:0.5rem;">
+          Password Reset Complete!
+        </div>
+        <p style="color:#94a3b8; font-size:0.88rem; margin-bottom:1.5rem; line-height:1.4;">
+          Your new password has been securely updated. You can now sign in with your updated credentials.
+        </p>
+        <button type="button" class="auth-submit-btn" onclick="closeForgotPasswordModal(); document.getElementById('login-password').focus();">
+          <span>Continue to Sign In</span>
+        </button>
+      </div>
+
+    </div>
   </div>
 
   <script>
     var currentRole = 'user';
     var currentMode = 'login'; // 'login' or 'register'
+    var resetSessionEmail = '';
 
     function getApiUrl(path) {
       if (window.location.protocol === 'file:') {
         return 'http://localhost:3000' + path;
       }
       return path;
+    }
+
+    function showModalAlert(stepNum, msg, isSuccess) {
+      var box = document.getElementById('modal-alert-' + stepNum);
+      if (!box) return;
+      box.textContent = msg;
+      box.style.display = 'block';
+      if (isSuccess) {
+        box.style.background = 'rgba(16, 185, 129, 0.15)';
+        box.style.border = '1px solid rgba(16, 185, 129, 0.35)';
+        box.style.color = '#6ee7b7';
+      } else {
+        box.style.background = 'rgba(239, 68, 68, 0.15)';
+        box.style.border = '1px solid rgba(239, 68, 68, 0.35)';
+        box.style.color = '#fca5a5';
+      }
+    }
+
+    function showStep(stepNum) {
+      document.getElementById('reset-step-1').style.display = stepNum === 1 ? 'block' : 'none';
+      document.getElementById('reset-step-2').style.display = stepNum === 2 ? 'block' : 'none';
+      document.getElementById('reset-step-3').style.display = stepNum === 3 ? 'block' : 'none';
+
+      for (var i = 1; i <= 3; i++) {
+        var dot = document.getElementById('step-dot-' + i);
+        if (dot) {
+          if (i <= stepNum) dot.classList.add('active');
+          else dot.classList.remove('active');
+        }
+      }
+    }
+
+    function handleForgotPassword(event) {
+      if (event) event.preventDefault();
+      var currentEmail = document.getElementById('login-email').value.trim();
+      if (currentEmail) {
+        document.getElementById('reset-email-input').value = currentEmail;
+      }
+      showStep(1);
+      document.getElementById('forgot-modal-backdrop').classList.add('active');
+    }
+
+    function closeForgotPasswordModal() {
+      document.getElementById('forgot-modal-backdrop').classList.remove('active');
+    }
+
+    async function handleRequestOtp() {
+      var email = document.getElementById('reset-email-input').value.trim();
+      var btn = document.getElementById('send-otp-btn');
+      if (!email) {
+        showModalAlert(1, 'Please enter your registered email address.', false);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>Sending OTP Code...</span>';
+
+      try {
+        var res = await fetch(getApiUrl('/api/auth/forgot-password'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email })
+        });
+        var data = await res.json();
+        btn.disabled = false;
+        btn.innerHTML = '<span>Send Verification Code (OTP)</span> <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+
+        if (!res.ok) {
+          showModalAlert(1, data.error || 'Failed to send OTP code.', false);
+          return;
+        }
+
+        resetSessionEmail = email;
+        document.getElementById('display-target-email').textContent = email;
+        if (data.otp) {
+          document.getElementById('reset-otp-input').value = data.otp;
+        }
+        showStep(2);
+        showModalAlert(2, 'OTP verification code sent! (Code: ' + (data.otp || 'Sent to email') + ')', true);
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Send Verification Code (OTP)</span>';
+        showModalAlert(1, 'Network error. Please try again.', false);
+      }
+    }
+
+    async function handleVerifyAndResetPassword() {
+      var otp = document.getElementById('reset-otp-input').value.trim();
+      var newPassword = document.getElementById('reset-new-password').value;
+      var btn = document.getElementById('confirm-reset-btn');
+
+      if (!otp || otp.length < 6) {
+        showModalAlert(2, 'Please enter the 6-digit OTP verification code.', false);
+        return;
+      }
+      if (!newPassword || newPassword.length < 6) {
+        showModalAlert(2, 'New password must be at least 6 characters.', false);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>Updating Password...</span>';
+
+      try {
+        var res = await fetch(getApiUrl('/api/auth/reset-password'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: resetSessionEmail,
+            otp: otp,
+            newPassword: newPassword
+          })
+        });
+        var data = await res.json();
+        btn.disabled = false;
+        btn.innerHTML = '<span>Verify &amp; Reset Password</span> <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+
+        if (!res.ok) {
+          showModalAlert(2, data.error || 'Failed to reset password.', false);
+          return;
+        }
+
+        document.getElementById('login-email').value = resetSessionEmail;
+        document.getElementById('login-password').value = newPassword;
+        showStep(3);
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Verify &amp; Reset Password</span>';
+        showModalAlert(2, 'Network error. Please try again.', false);
+      }
     }
 
     // Auto-fill remembered email if present
@@ -1266,17 +1580,6 @@
         passInput.type = 'password';
         eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
       }
-    }
-
-    function handleForgotPassword(event) {
-      event.preventDefault();
-      var email = document.getElementById('login-email').value.trim();
-      if (!email) {
-        showAlert('Please enter your email address first, then click Forgot Password.', false);
-        document.getElementById('login-email').focus();
-        return;
-      }
-      showAlert('Password reset link has been sent to ' + email + ' (Simulation)', true);
     }
 
     function toggleAuthMode(event) {

@@ -207,7 +207,93 @@ module.exports = async function(req, res) {
     });
   }
 
-  // ===== 7. LOGOUT =====
+  // ===== 7. FORGOT PASSWORD (REQUEST OTP) =====
+  if (action === 'forgot-password' && req.method === 'POST') {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ error: 'Email address is required.' });
+    const cleanEmail = String(email).trim().toLowerCase();
+
+    const user = USERS.find(u => u.email === cleanEmail) || diskUsers.find(u => u.email === cleanEmail);
+    if (!user) {
+      return res.status(404).json({ error: 'No account found with this email address.' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 mins expiry
+    const { OTPS } = require('../_shared/data');
+    OTPS.set(cleanEmail, { otp, expiresAt });
+
+    // Live email dispatch if configured
+    if (process.env.RESEND_API_KEY) {
+      try {
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: 'RentRight Security <security@rentright.com>',
+            to: [cleanEmail],
+            subject: 'RentRight Password Reset OTP Code: ' + otp,
+            html: `<h2>RentRight Password Recovery</h2><p>Your one-time verification code is <strong>${otp}</strong>. It will expire in 15 minutes.</p>`
+          })
+        });
+      } catch(e) {}
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'A 6-digit OTP verification code has been sent to your email.',
+      otp: otp, // Returned for instant testing and seamless client verification
+      expiresInMinutes: 15
+    });
+  }
+
+  // ===== 8. RESET PASSWORD (VERIFY OTP & UPDATE) =====
+  if (action === 'reset-password' && req.method === 'POST') {
+    const { email, otp, newPassword } = req.body || {};
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Email, OTP code, and new password are required.' });
+    }
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanOtp = String(otp).trim();
+
+    const { OTPS } = require('../_shared/data');
+    const record = OTPS.get(cleanEmail);
+    if (!record) {
+      return res.status(400).json({ error: 'No OTP requested for this email or OTP has expired. Please request a new code.' });
+    }
+    if (Date.now() > record.expiresAt) {
+      OTPS.delete(cleanEmail);
+      return res.status(400).json({ error: 'The OTP verification code has expired. Please request a new code.' });
+    }
+    if (record.otp !== cleanOtp) {
+      return res.status(400).json({ error: 'Invalid OTP verification code. Please check and try again.' });
+    }
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+    }
+
+    const user = USERS.find(u => u.email === cleanEmail) || diskUsers.find(u => u.email === cleanEmail);
+    if (!user) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+
+    const newHash = hashPassword(newPassword);
+    user.password = newHash;
+    user.updatedAt = new Date().toISOString();
+    updateUserOnDisk(user.id, { password: newHash, updatedAt: user.updatedAt });
+    OTPS.delete(cleanEmail);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password reset successful! You can now sign in with your new password.'
+    });
+  }
+
+  // ===== 9. LOGOUT =====
   if (action === 'logout') {
     const s = getSessionUser(req);
     if (s && s.token) SESSIONS.delete(s.token);

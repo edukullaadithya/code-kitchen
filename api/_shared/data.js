@@ -215,6 +215,83 @@ function loadDiskListings() {
 
 let FAVORITES = loadDiskFavorites();
 
+// ===== REVIEWS STORE =====
+const TMP_REVIEWS_FILE = process.platform === 'win32'
+  ? path.join(__dirname, '..', '..', 'reviews.json')
+  : path.join('/tmp', 'reviews_store.json');
+
+function loadDiskReviews() {
+  try {
+    if (fs.existsSync(TMP_REVIEWS_FILE)) {
+      return JSON.parse(fs.readFileSync(TMP_REVIEWS_FILE, 'utf8'));
+    }
+  } catch(e) {}
+  return [];
+}
+
+function saveReviewToDisk(rev) {
+  try {
+    let list = loadDiskReviews();
+    const idx = list.findIndex(r => String(r.id) === String(rev.id));
+    if (idx !== -1) {
+      list[idx] = Object.assign({}, list[idx], rev);
+    } else {
+      list.unshift(rev);
+    }
+    fs.writeFileSync(TMP_REVIEWS_FILE, JSON.stringify(list, null, 2), 'utf8');
+  } catch(e) {}
+}
+
+function deleteReviewFromDisk(id) {
+  try {
+    let list = loadDiskReviews();
+    list = list.filter(r => String(r.id) !== String(id));
+    fs.writeFileSync(TMP_REVIEWS_FILE, JSON.stringify(list, null, 2), 'utf8');
+  } catch(e) {}
+}
+
+let REVIEWS = loadDiskReviews();
+
+// ===== MESSAGES STORE =====
+const TMP_MESSAGES_FILE = process.platform === 'win32'
+  ? path.join(__dirname, '..', '..', 'messages.json')
+  : path.join('/tmp', 'messages_store.json');
+
+function loadDiskMessages() {
+  try {
+    if (fs.existsSync(TMP_MESSAGES_FILE)) {
+      return JSON.parse(fs.readFileSync(TMP_MESSAGES_FILE, 'utf8'));
+    }
+  } catch(e) {}
+  return [];
+}
+
+function saveMessageToDisk(msg) {
+  try {
+    let list = loadDiskMessages();
+    const idx = list.findIndex(m => String(m.id) === String(msg.id));
+    if (idx !== -1) {
+      list[idx] = Object.assign({}, list[idx], msg);
+    } else {
+      list.push(msg);
+    }
+    fs.writeFileSync(TMP_MESSAGES_FILE, JSON.stringify(list, null, 2), 'utf8');
+  } catch(e) {}
+}
+
+function deleteMessageFromDisk(id) {
+  try {
+    let list = loadDiskMessages();
+    list = list.filter(m => String(m.id) !== String(id));
+    fs.writeFileSync(TMP_MESSAGES_FILE, JSON.stringify(list, null, 2), 'utf8');
+  } catch(e) {}
+}
+
+let MESSAGES = loadDiskMessages();
+
+// ===== OTP RECOVERY STORE =====
+const OTPS = new Map();
+
 function loadListings() {
   try {
     const appJsPath = path.join(__dirname, '..', '..', 'client.js');
@@ -655,5 +732,14 @@ module.exports = {
   saveInquiryToDisk,
   updateInquiryOnDisk,
   deleteInquiryFromDisk,
-  loadDiskInquiries
+  loadDiskInquiries,
+  REVIEWS,
+  MESSAGES,
+  OTPS,
+  saveReviewToDisk,
+  deleteReviewFromDisk,
+  loadDiskReviews,
+  saveMessageToDisk,
+  deleteMessageFromDisk,
+  loadDiskMessages
 };

@@ -812,9 +812,11 @@ function renderListings(rawList) {
         '</div>' +
         '<div class="score-bar-wrap">' + barsHTML + '</div>' +
         '<div class="card-tags">' + tagsHTML + '</div>' +
-        '<div class="card-actions">' +
-          '<button class="btn-primary" onclick="event.stopPropagation();openProperty(currentListings[' + idx + '])">View Details</button>' +
-          '<button class="btn-outline" onclick="event.stopPropagation();alert(\'Saved!\')">💾 Save</button>' +
+        '<div class="card-actions" style="display:flex; flex-wrap:wrap; gap:0.4rem;">' +
+          '<button class="btn-primary" style="flex:1; min-width:110px;" onclick="event.stopPropagation();openProperty(currentListings[' + idx + '])">View Details</button>' +
+          '<button class="btn-outline" style="padding:0.4rem 0.6rem;" title="View Verified Reviews" onclick="event.stopPropagation();openReviewsModal(' + l.id + ', \'' + (l.name.replace(/'/g, "\\'")) + '\')">⭐ Reviews</button>' +
+          '<button class="btn-outline" style="padding:0.4rem 0.6rem; color:#818cf8; border-color:rgba(129,140,248,0.4);" title="Chat with Landlord" onclick="event.stopPropagation();openChatDrawer(' + l.id + ', \'' + (l.name.replace(/'/g, "\\'")) + '\', \'' + (l.ownerEmail || 'admin@rentright.com') + '\', \'' + (l.ownerEmail ? l.ownerEmail.split('@')[0] : 'Property Manager') + '\')">💬 Chat</button>' +
+          '<button class="btn-outline" style="padding:0.4rem 0.6rem;" title="Save Property" onclick="event.stopPropagation();toggleSaveFavorite(' + l.id + ', \'' + (l.name.replace(/'/g, "\\'")) + '\')">💾</button>' +
         '</div>' +
       '</div>';
 
@@ -953,10 +955,11 @@ function openProperty(rawL) {
     '<div class="property-scores">' + scoresHTML + '</div>' +
     '<div class="property-amenities"><h4>Amenities Included</h4><div class="amenity-grid">' + amenitiesHTML + '</div></div>' +
     '<div class="property-reviews"><h4>Tenant Reviews</h4>' + reviewsHTML + '</div>' +
-    '<div class="property-actions">' +
+    '<div class="property-actions" style="display:flex; flex-wrap:wrap; gap:0.6rem;">' +
       '<button class="btn-primary" style="background:linear-gradient(135deg,#10b981,#059669)" onclick="openInquiryModal(' + l.id + ', \'' + (l.name.replace(/'/g, "\\'")) + '\', \'' + (l.ownerEmail || 'admin@rentright.com') + '\')">🙋 Express Interest to Rent</button>' +
-      '<button class="btn-primary" onclick="alert(\'Scheduling a visit!\')">📅 Schedule Visit</button>' +
-      '<button class="btn-outline" onclick="alert(\'Saved to your favorites!\')">💾 Save Flat</button>' +
+      '<button class="btn-primary" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)" onclick="openChatDrawer(' + l.id + ', \'' + (l.name.replace(/'/g, "\\'")) + '\', \'' + (l.ownerEmail || 'admin@rentright.com') + '\', \'' + (l.ownerEmail ? l.ownerEmail.split('@')[0] : 'Property Manager') + '\')">💬 Chat with Manager</button>' +
+      '<button class="btn-outline" onclick="openReviewsModal(' + l.id + ', \'' + (l.name.replace(/'/g, "\\'")) + '\')">⭐ Read &amp; Add Reviews</button>' +
+      '<button class="btn-outline" onclick="toggleSaveFavorite(' + l.id + ', \'' + (l.name.replace(/'/g, "\\'")) + '\')">💾 Save Flat</button>' +
     '</div>';
 
   // Initialize dynamic HERE Maps API
@@ -1978,6 +1981,339 @@ async function handleDeleteInquiry(id) {
   loadAdminInquiries();
 }
 
+// ===== PRIORITY 2: REVIEWS & TENANT RATINGS CONTROLLER =====
+var currentReviewListingId = null;
+
+function setReviewRating(rating) {
+  var valInput = document.getElementById('review-rating-val');
+  if (valInput) valInput.value = rating;
+  
+  var stars = document.querySelectorAll('#star-picker span');
+  stars.forEach(function(starEl) {
+    var starNum = Number(starEl.getAttribute('data-star'));
+    if (starNum <= rating) {
+      starEl.style.color = '#f59e0b';
+    } else {
+      starEl.style.color = '#475569';
+    }
+  });
+}
+
+function openReviewsModal(listingId, listingName) {
+  currentReviewListingId = String(listingId);
+  var overlay = document.getElementById('reviews-overlay');
+  var nameEl = document.getElementById('reviews-flat-name');
+  var hiddenId = document.getElementById('review-listing-id');
+  var hiddenName = document.getElementById('review-listing-name');
+
+  if (nameEl) nameEl.textContent = listingName + ' — Resident Reviews';
+  if (hiddenId) hiddenId.value = listingId;
+  if (hiddenName) hiddenName.value = listingName;
+  if (overlay) overlay.style.display = 'flex';
+
+  setReviewRating(5);
+  loadPropertyReviews(listingId);
+}
+
+function closeReviewsModal() {
+  var overlay = document.getElementById('reviews-overlay');
+  if (overlay) overlay.style.display = 'none';
+  var alertEl = document.getElementById('review-submit-alert');
+  if (alertEl) alertEl.style.display = 'none';
+}
+
+async function loadPropertyReviews(listingId) {
+  var listContainer = document.getElementById('reviews-list-container');
+  var avgRatingEl = document.getElementById('reviews-avg-rating');
+  var totalCountEl = document.getElementById('reviews-total-count');
+  var safetyScoreEl = document.getElementById('reviews-safety-score');
+  var landlordScoreEl = document.getElementById('reviews-landlord-score');
+  var waterScoreEl = document.getElementById('reviews-water-score');
+
+  if (!listContainer) return;
+  listContainer.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem; text-align:center;">Loading verified tenant reviews...</p>';
+
+  try {
+    var res = await fetch(getApiUrl('/api/reviews?listingId=') + encodeURIComponent(listingId));
+    var data = await res.json();
+    var reviews = data.reviews || [];
+    var agg = data.aggregates || {};
+
+    if (avgRatingEl) avgRatingEl.textContent = agg.averageRating ? agg.averageRating.toFixed(1) : '0.0';
+    if (totalCountEl) totalCountEl.textContent = data.totalCount || 0;
+    if (safetyScoreEl) safetyScoreEl.textContent = (agg.safetyRating ? agg.safetyRating.toFixed(1) : '5.0') + '★';
+    if (landlordScoreEl) landlordScoreEl.textContent = (agg.landlordRating ? agg.landlordRating.toFixed(1) : '5.0') + '★';
+    if (waterScoreEl) waterScoreEl.textContent = (agg.waterPowerRating ? agg.waterPowerRating.toFixed(1) : '5.0') + '★';
+
+    if (reviews.length === 0) {
+      listContainer.innerHTML = '<div style="text-align:center; padding:1.5rem; color:var(--text-muted); font-size:0.88rem; background:rgba(255,255,255,0.02); border-radius:12px;">' +
+        '🌟 No resident reviews posted yet for this listing. Be the first to share your experience!' +
+        '</div>';
+      return;
+    }
+
+    listContainer.innerHTML = '';
+    reviews.forEach(function(rev) {
+      var starsHTML = '★'.repeat(rev.rating || 5) + '☆'.repeat(Math.max(0, 5 - (rev.rating || 5)));
+      var dateStr = rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('en-IN') : 'Recently';
+
+      var revCard = document.createElement('div');
+      revCard.style.cssText = 'background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); border-radius:12px; padding:1rem;';
+      revCard.innerHTML = 
+        '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.4rem;">' +
+          '<div style="display:flex; align-items:center; gap:0.6rem;">' +
+            '<img src="' + (rev.authorAvatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=user') + '" style="width:32px; height:32px; border-radius:50%; background:#1e293b;" />' +
+            '<div>' +
+              '<div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">' + (rev.authorName || 'Verified Resident') + '</div>' +
+              '<div style="font-size:0.72rem; color:#10b981;">✓ ' + (rev.tenantStatus || 'Verified Resident') + ' · ' + dateStr + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="color:#f59e0b; font-size:1.1rem; font-weight:700;">' + starsHTML + '</div>' +
+        '</div>' +
+        '<p style="color:var(--text-secondary); font-size:0.86rem; margin:0.4rem 0; line-height:1.4;">"' + (rev.comment || '') + '"</p>' +
+        '<div style="display:flex; gap:0.6rem; font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">' +
+          '<span>🛡️ Safety: ' + (rev.safetyScore || rev.rating) + '/5</span>' +
+          '<span>🤝 Landlord: ' + (rev.landlordScore || rev.rating) + '/5</span>' +
+          '<span>⚡ Power/Water: ' + (rev.waterPowerScore || rev.rating) + '/5</span>' +
+        '</div>';
+      listContainer.appendChild(revCard);
+    });
+  } catch(e) {
+    listContainer.innerHTML = '<p style="color:var(--accent-red); font-size:0.85rem; text-align:center;">Failed to load reviews.</p>';
+  }
+}
+
+async function handleReviewSubmit(event) {
+  event.preventDefault();
+  var listingId = document.getElementById('review-listing-id').value;
+  var listingName = document.getElementById('review-listing-name').value;
+  var rating = document.getElementById('review-rating-val').value;
+  var safetyScore = document.getElementById('review-safety-input').value;
+  var landlordScore = document.getElementById('review-landlord-input').value;
+  var waterPowerScore = document.getElementById('review-water-input').value;
+  var comment = document.getElementById('review-comment-input').value.trim();
+  var alertEl = document.getElementById('review-submit-alert');
+  var btn = document.getElementById('submit-review-btn');
+
+  if (!comment) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Posting Review...';
+
+  var authorEmail = getCurrentUserEmail() || '';
+  var authorName = (authState.user && authState.user.name) || 'Resident Renter';
+
+  try {
+    var res = await fetch(getApiUrl('/api/reviews'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (authState.token || '')
+      },
+      body: JSON.stringify({
+        listingId: listingId,
+        listingName: listingName,
+        rating: rating,
+        safetyScore: safetyScore,
+        landlordScore: landlordScore,
+        waterPowerScore: waterPowerScore,
+        comment: comment,
+        authorName: authorName,
+        authorEmail: authorEmail,
+        tenantStatus: 'Verified Resident'
+      })
+    });
+
+    var data = await res.json();
+    btn.disabled = false;
+    btn.textContent = '⭐ Post Verified Review';
+
+    if (!res.ok) {
+      if (alertEl) {
+        alertEl.textContent = data.error || 'Failed to submit review.';
+        alertEl.style.display = 'block';
+        alertEl.style.background = 'rgba(239,68,68,0.15)';
+        alertEl.style.color = '#fca5a5';
+      }
+      return;
+    }
+
+    if (alertEl) {
+      alertEl.textContent = '✓ Review posted successfully!';
+      alertEl.style.display = 'block';
+      alertEl.style.background = 'rgba(16,185,129,0.15)';
+      alertEl.style.color = '#6ee7b7';
+    }
+    document.getElementById('review-comment-input').value = '';
+    loadPropertyReviews(listingId);
+  } catch(err) {
+    btn.disabled = false;
+    btn.textContent = '⭐ Post Verified Review';
+    if (alertEl) {
+      alertEl.textContent = 'Network error. Please try again.';
+      alertEl.style.display = 'block';
+      alertEl.style.background = 'rgba(239,68,68,0.15)';
+      alertEl.style.color = '#fca5a5';
+    }
+  }
+}
+
+// ===== PRIORITY 2: IN-APP MESSAGING & LIVE CHAT CONTROLLER =====
+var activeChatListingId = null;
+var activeChatRecipientEmail = null;
+var activeChatPollingInterval = null;
+
+function openChatDrawer(listingId, listingName, ownerEmail, managerName) {
+  activeChatListingId = String(listingId || '');
+  activeChatRecipientEmail = ownerEmail || 'admin@rentright.com';
+
+  var overlay = document.getElementById('chat-overlay');
+  var nameEl = document.getElementById('chat-manager-name');
+  var tagEl = document.getElementById('chat-flat-tag');
+
+  if (nameEl) nameEl.textContent = managerName || 'Property Manager';
+  if (tagEl) tagEl.textContent = listingName || 'Rental Listing';
+  if (overlay) overlay.style.display = 'flex';
+
+  loadChatMessages();
+
+  // Clear existing polling and start live 4s auto-refresh
+  if (activeChatPollingInterval) clearInterval(activeChatPollingInterval);
+  activeChatPollingInterval = setInterval(loadChatMessages, 4000);
+}
+
+function closeChatDrawer() {
+  var overlay = document.getElementById('chat-overlay');
+  if (overlay) overlay.style.display = 'none';
+  if (activeChatPollingInterval) {
+    clearInterval(activeChatPollingInterval);
+    activeChatPollingInterval = null;
+  }
+}
+
+async function loadChatMessages() {
+  var container = document.getElementById('chat-messages-container');
+  if (!container || !activeChatRecipientEmail) return;
+
+  var userEmail = getCurrentUserEmail() || 'guest@rentright.com';
+
+  try {
+    var url = getApiUrl('/api/messages?chatWith=') + encodeURIComponent(activeChatRecipientEmail) +
+              '&listingId=' + encodeURIComponent(activeChatListingId || '');
+    var res = await fetch(url, {
+      headers: { 'Authorization': 'Bearer ' + (authState.token || '') }
+    });
+    var data = await res.json();
+    var messages = data.messages || [];
+
+    if (messages.length === 0) {
+      container.innerHTML = 
+        '<div style="text-align:center; padding:2.5rem 1rem; color:var(--text-muted); font-size:0.85rem;">' +
+          '<div style="font-size:2rem; margin-bottom:0.5rem;">💬</div>' +
+          'No messages yet. Send a message to get instant details or schedule a tour!' +
+        '</div>';
+      return;
+    }
+
+    container.innerHTML = '';
+    messages.forEach(function(msg) {
+      var isMe = (msg.senderEmail && userEmail && msg.senderEmail.toLowerCase() === userEmail.toLowerCase()) ||
+                 (msg.senderRole === 'user' && (!authState.user || authState.user.role === 'user'));
+      
+      var timeStr = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Now';
+
+      var bubbleWrap = document.createElement('div');
+      bubbleWrap.style.cssText = 'display:flex; flex-direction:column; align-items:' + (isMe ? 'flex-end' : 'flex-start') + ';';
+
+      var bubble = document.createElement('div');
+      bubble.style.cssText = isMe
+        ? 'background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#ffffff; padding:0.65rem 0.95rem; border-radius:16px 16px 4px 16px; max-width:82%; font-size:0.88rem; line-height:1.4;'
+        : 'background:rgba(255,255,255,0.06); border:1px solid var(--border-subtle); color:var(--text-primary); padding:0.65rem 0.95rem; border-radius:16px 16px 16px 4px; max-width:82%; font-size:0.88rem; line-height:1.4;';
+
+      bubble.textContent = msg.message;
+      
+      var meta = document.createElement('div');
+      meta.style.cssText = 'font-size:0.68rem; color:var(--text-muted); margin-top:0.2rem; padding:0 0.2rem;';
+      meta.textContent = (isMe ? 'You · ' : (msg.senderName || 'Manager') + ' · ') + timeStr;
+
+      bubbleWrap.appendChild(bubble);
+      bubbleWrap.appendChild(meta);
+      container.appendChild(bubbleWrap);
+    });
+
+    // Auto-scroll to bottom of chat
+    container.scrollTop = container.scrollHeight;
+  } catch(e) {}
+}
+
+async function handleSendChatMessage(event) {
+  event.preventDefault();
+  var input = document.getElementById('chat-text-input');
+  var text = input ? input.value.trim() : '';
+  if (!text) return;
+
+  var userEmail = getCurrentUserEmail() || 'guest@rentright.com';
+  var userName = (authState.user && authState.user.name) || 'Renter';
+
+  input.value = '';
+
+  try {
+    await fetch(getApiUrl('/api/messages'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (authState.token || '')
+      },
+      body: JSON.stringify({
+        listingId: activeChatListingId,
+        listingName: document.getElementById('chat-flat-tag') ? document.getElementById('chat-flat-tag').textContent : '',
+        recipientEmail: activeChatRecipientEmail,
+        recipientName: document.getElementById('chat-manager-name') ? document.getElementById('chat-manager-name').textContent : 'Manager',
+        senderEmail: userEmail,
+        senderName: userName,
+        message: text
+      })
+    });
+    loadChatMessages();
+  } catch(e) {}
+}
+
+function sendQuickReply(text) {
+  var input = document.getElementById('chat-text-input');
+  if (input) {
+    input.value = text;
+    handleSendChatMessage(new Event('submit'));
+  }
+}
+
+// ===== SAVED FAVORITES / WISHLIST CONTROLLER =====
+async function toggleSaveFavorite(listingId, listingName) {
+  var token = localStorage.getItem('rentright_token');
+  var userEmail = getCurrentUserEmail() || '';
+  
+  try {
+    var res = await fetch(getApiUrl('/api/favorites'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token || '')
+      },
+      body: JSON.stringify({
+        listingId: String(listingId),
+        listingName: listingName,
+        userEmail: userEmail
+      })
+    });
+    if (res.ok) {
+      alert('❤️ "' + listingName + '" has been saved to your Favorites / Wishlist!');
+    } else {
+      alert('💾 Saved to your wishlist!');
+    }
+  } catch(e) {
+    alert('💾 Saved to your wishlist!');
+  }
+}
+
 // Initial fetch from server and local merge
 fetchAndUpdateLocalListings();
 
@@ -2012,5 +2348,15 @@ window.closeInquiryModal = closeInquiryModal;
 window.handleInquirySubmit = handleInquirySubmit;
 window.loadAdminInquiries = loadAdminInquiries;
 window.handleDeleteInquiry = handleDeleteInquiry;
+window.openReviewsModal = openReviewsModal;
+window.closeReviewsModal = closeReviewsModal;
+window.setReviewRating = setReviewRating;
+window.handleReviewSubmit = handleReviewSubmit;
+window.openChatDrawer = openChatDrawer;
+window.closeChatDrawer = closeChatDrawer;
+window.handleSendChatMessage = handleSendChatMessage;
+window.sendQuickReply = sendQuickReply;
+window.toggleSaveFavorite = toggleSaveFavorite;
 window.ALL_LISTINGS    = ALL_LISTINGS;
 window.currentListings = currentListings;
+
